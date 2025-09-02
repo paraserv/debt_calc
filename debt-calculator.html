@@ -1535,6 +1535,8 @@
                 const tbody = document.getElementById('debtTableBody');
                 if (tbody && tbody.lastElementChild) {
                     tbody.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const nameInput = tbody.lastElementChild.querySelector('input[type="text"]');
+                    if (nameInput) nameInput.focus();
                 }
             }, 0);
         }
@@ -1645,6 +1647,8 @@
             // Check if this payment is before start date
             updateExtraPayments();
             row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            const amountInput = row.querySelector('input[type="number"]');
+            if (amountInput) amountInput.focus();
         }
         
         function formatMonthYear(dateStr) {
