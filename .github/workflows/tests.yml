@@ -14,11 +14,5 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Install dependencies
-        run: |
-          npm init -y
-          npm i playwright@1.46.1
-          npx playwright install --with-deps chromium
-      - name: Run headless tests
-        run: |
-          node -e "const {chromium}=require('playwright');(async()=>{const b=await chromium.launch();const p=await b.newPage();await p.goto('file://' + process.cwd() + '/tests.html');await p.waitForSelector('#tests-status[data-done=\'true\']',{timeout:60000});const failures=await p.locator('.fail').count();await b.close();if(failures>0){console.error('Tests failed');process.exit(1);}console.log('All tests passed');})();"
+      - name: Run unit tests
+        run: node tests.js

@@ -887,6 +887,32 @@
             left: -100px;
             margin-top: 5px;
         }
+
+        /* Unified tooltip for buttons and controls */
+        .has-tooltip[data-tooltip] {
+            position: relative;
+        }
+        .has-tooltip[data-tooltip]:hover::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: calc(100% + 6px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #2d3748;
+            color: #fff;
+            padding: 6px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: normal;
+            width: max-content;
+            max-width: 260px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            opacity: 0;
+            animation: tooltipFade 0.2s ease forwards;
+            animation-delay: 1s; /* show quicker but avoid jitter */
+            z-index: 10000;
+        }
+        @keyframes tooltipFade { from { opacity: 0; } to { opacity: 1; } }
         
         .debug-info {
             background: #f0f4f8;
@@ -966,8 +992,8 @@
     <div class="container">
         <h1>💰 Advanced Debt Payoff Calculator</h1>
         <div style="display:flex;justify-content:flex-end;margin-bottom:10px;gap:10px;">
-            <button class="small" id="themeToggle" title="Toggle dark mode">🌙 Dark</button>
-            <button class="small" id="analyticsToggle" title="Toggle local analytics (anonymous, stored only in your browser)">📊 Analytics: Off</button>
+            <button class="small has-tooltip" id="themeToggle" data-tooltip="Toggle dark mode">🌙 Dark</button>
+            <button class="small has-tooltip" id="analyticsToggle" data-tooltip="Toggle local analytics (anonymous, stored only in your browser)">📊 Analytics: Off</button>
         </div>
         <p class="subtitle">Compare strategies and optimize your debt payoff plan</p>
         
@@ -985,7 +1011,7 @@
                     <div class="input-group">
                         <label>Start Date:</label>
                         <div class="date-picker-wrapper">
-                            <div class="date-display" onclick="toggleStartDateCalendar()" id="startDateDisplay">
+                            <div class="date-display" onclick="toggleStartDateCalendar()" id="startDateDisplay" role="button" tabindex="0" aria-label="Select start month">
                                 <span id="startDateText">Select Month</span>
                                 <span>📅</span>
                             </div>
@@ -1015,35 +1041,35 @@
 
         <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 20px;">
             <div class="method-selector" style="flex: 1; margin-bottom: 0;">
-                <div class="method-btn active" onclick="setMethod('snowball')" id="method-snowball">
+                <div class="method-btn active" onclick="setMethod('snowball')" id="method-snowball" data-tooltip="Pays off smallest debts first for psychological wins and motivation. Great for building momentum and confidence in your debt payoff journey.">
                     <div class="method-title">❄️ Snowball</div>
                     <div class="method-desc">Lowest balance first</div>
-                    <span class="info-tooltip" data-tooltip="Pays off smallest debts first for psychological wins and motivation. Great for building momentum and confidence in your debt payoff journey.">ℹ️</span>
+                    <span class="info-tooltip" data-tooltip="">ℹ️</span>
                 </div>
-                <div class="method-btn" onclick="setMethod('avalanche')" id="method-avalanche">
+                <div class="method-btn" onclick="setMethod('avalanche')" id="method-avalanche" data-tooltip="Mathematically optimal - pays highest interest rate debts first to minimize total interest paid. Saves the most money over time.">
                     <div class="method-title">🏔️ Avalanche</div>
                     <div class="method-desc">Highest rate first</div>
-                    <span class="info-tooltip" data-tooltip="Mathematically optimal - pays highest interest rate debts first to minimize total interest paid. Saves the most money over time.">ℹ️</span>
+                    <span class="info-tooltip" data-tooltip="">ℹ️</span>
                 </div>
-                <div class="method-btn" onclick="setMethod('cfi')" id="method-cfi">
+                <div class="method-btn" onclick="setMethod('cfi')" id="method-cfi" data-tooltip="Cash Flow Index prioritizes debts that free up monthly cash flow fastest. CFI = Balance ÷ (Payment - Interest). Lower CFI means faster cash flow improvement.">
                     <div class="method-title">💸 Cash Flow</div>
                     <div class="method-desc">Best CFI first</div>
-                    <span class="info-tooltip" data-tooltip="Cash Flow Index prioritizes debts that free up monthly cash flow fastest. CFI = Balance ÷ (Payment - Interest). Lower CFI means faster cash flow improvement.">ℹ️</span>
+                    <span class="info-tooltip" data-tooltip="">ℹ️</span>
                 </div>
-                <div class="method-btn" onclick="setMethod('utilization')" id="method-utilization">
+                <div class="method-btn" onclick="setMethod('utilization')" id="method-utilization" data-tooltip="Optimizes credit score by: 1) Paying over-limit cards, 2) Getting cards below 30% utilization (starting with those closest to 30%), 3) Then highest rate cards. Best for credit improvement.">
                     <div class="method-title">📈 Credit Score</div>
                     <div class="method-desc">High utilization first</div>
-                    <span class="info-tooltip" data-tooltip="Optimizes credit score by: 1) Paying over-limit cards, 2) Getting cards below 30% utilization (starting with those closest to 30%), 3) Then highest rate cards. Best for credit improvement.">ℹ️</span>
+                    <span class="info-tooltip" data-tooltip="">ℹ️</span>
                 </div>
-                <div class="method-btn" onclick="setMethod('custom')" id="method-custom">
+                <div class="method-btn" onclick="setMethod('custom')" id="method-custom" data-tooltip="Drag and drop debts in the table below to set your own custom payoff order based on your personal priorities.">
                     <div class="method-title">🎯 Custom</div>
                     <div class="method-desc">Your order</div>
-                    <span class="info-tooltip" data-tooltip="Drag and drop debts in the table below to set your own custom payoff order based on your personal priorities.">ℹ️</span>
+                    <span class="info-tooltip" data-tooltip="">ℹ️</span>
                 </div>
             </div>
             <div style="display:flex; gap:10px; align-items:center;">
-                <button id="syncCustomBtn" class="small" title="Copy the current method’s order into Custom" onclick="syncCustomOrderToCurrentMethod()">🔁 Customize from <span id="syncMethodLabel">METHOD</span></button>
-                <button onclick="showComparison()" style="white-space: nowrap;">📊 Compare All Methods</button>
+                <button id="syncCustomBtn" class="small has-tooltip" data-tooltip="Copy the current method’s order into Custom" onclick="syncCustomOrderToCurrentMethod()">🔁 Customize from <span id="syncMethodLabel">METHOD</span></button>
+                <button class="has-tooltip" onclick="showComparison()" style="white-space: nowrap;" data-tooltip="Open a side-by-side comparison of all methods">📊 Compare All Methods</button>
             </div>
         </div>
 
@@ -1055,8 +1081,8 @@
         </div>
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
             <span class="info-tooltip" style="font-size: 16px; color: #4299e1; cursor: help;" data-tooltip="The # column shows the payoff order for your selected method. Debt #1 gets all extra payments first, then #2, etc. The order changes when you switch methods. Drag rows to create a custom order.">ℹ️</span>
-            <button class="small success" onclick="addDebt()">+ Add Debt</button>
-            <button class="small danger" onclick="removeAllDebts()">🗑️ Remove All</button>
+            <button class="small success has-tooltip" onclick="addDebt()" data-tooltip="Add a new debt row">+ Add Debt</button>
+            <button class="small danger has-tooltip" onclick="removeAllDebts()" data-tooltip="Remove all debts">🗑️ Remove All</button>
         </div>
         <div class="scroll-container">
             <table id="debtTable">
@@ -1087,9 +1113,9 @@
             </div>
             <div class="extra-payments-list" id="extraPaymentsList"></div>
             <div style="display:flex; gap:10px; margin-top:8px;">
-                <button class="small success" onclick="addExtraPayment()">+ Add Extra Payment</button>
-                <button class="small danger" onclick="removeAllExtraPayments()">🗑️ Remove All</button>
-                <button class="small" onclick="copyConfigurationJSON()" title="Copy current configuration (debts, extra payments, method, totals, start date) to clipboard as JSON. Paste into a text editor or share with someone; restore using Load Configuration (JSON file).">📋 Copy JSON</button>
+                <button class="small success has-tooltip" onclick="addExtraPayment()" data-tooltip="Add a new extra payment row">+ Add Extra Payment</button>
+                <button class="small danger has-tooltip" onclick="removeAllExtraPayments()" data-tooltip="Remove all extra payments">🗑️ Remove All</button>
+                <button class="small has-tooltip" onclick="copyConfigurationJSON()" data-tooltip="Copy current configuration (debts, extra payments, method, totals, start date) to clipboard as JSON. Paste to a text editor or share; restore using Load Configuration (JSON file).">📋 Copy JSON</button>
             </div>
             <div class="debug-info" id="debugInfo" style="display: none;"></div>
         </div>
@@ -1105,12 +1131,12 @@
         </div>
 
         <div class="export-buttons">
-            <button onclick="exportToCSV()">📥 Export Detailed Schedule to CSV</button>
-            <button onclick="exportSimplifiedToCSV()">📥 Export Simple Schedule to CSV</button>
-            <button onclick="exportDebtListToCSV()">📥 Export Debt List to CSV</button>
-            <button onclick="saveConfiguration()">💾 Save Configuration</button>
-            <button onclick="loadConfiguration()">📂 Load Configuration</button>
-            <button class="danger" onclick="resetAll()">🧹 Reset All</button>
+            <button class="has-tooltip" onclick="exportToCSV()" data-tooltip="Download a detailed monthly schedule as CSV">📥 Export Detailed Schedule to CSV</button>
+            <button class="has-tooltip" onclick="exportSimplifiedToCSV()" data-tooltip="Download a condensed schedule as CSV">📥 Export Simple Schedule to CSV</button>
+            <button class="has-tooltip" onclick="exportDebtListToCSV()" data-tooltip="Download your debt list as CSV">📥 Export Debt List to CSV</button>
+            <button class="has-tooltip" onclick="saveConfiguration()" data-tooltip="Save current configuration to a JSON file">💾 Save Configuration</button>
+            <button class="has-tooltip" onclick="loadConfiguration()" data-tooltip="Load a configuration from a JSON file">📂 Load Configuration</button>
+            <button class="danger has-tooltip" onclick="resetAll()" data-tooltip="Reset all data and clear local storage">🧹 Reset All</button>
         </div>
     </div>
 
@@ -1626,7 +1652,7 @@
             
             row.innerHTML = `
                 <div class="date-picker-wrapper">
-                    <div class="date-display" onclick="toggleCalendar('${rowId}')" id="date-display-${rowId}">
+                    <div class="date-display" onclick="toggleCalendar('${rowId}')" id="date-display-${rowId}" role="button" tabindex="0" aria-label="Select month">
                         <span>${defaultMonth ? formatMonthYear(defaultMonth) : 'Select Month'}</span>
                         <span>📅</span>
                     </div>
