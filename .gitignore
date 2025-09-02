@@ -1,0 +1,10 @@
+# Local temp files
+.tmp_*
+*.tmp
+*.log
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
