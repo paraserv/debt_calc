@@ -39,3 +39,8 @@ This repo uses GitHub Pages + Actions. On push to `main`, the site is deployed a
 
 ## License
 MIT — see `LICENSE`.
+
+## UI tips
+- Method cards show explanations on hover (0.5s delay).
+- Most buttons show a short tooltip on hover.
+- Press Esc to close modals; Enter confirms when available.
