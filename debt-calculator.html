@@ -860,7 +860,7 @@
             position: relative;
         }
 
-        .info-tooltip:hover::after {
+        .info-tooltip:hover::after, .info-tooltip.sticky::after {
             content: attr(data-tooltip);
             position: absolute;
             background: #2d3748;
@@ -876,7 +876,7 @@
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
         }
         
-        .method-btn .info-tooltip:hover::after {
+        .method-btn .info-tooltip:hover::after, .method-btn .info-tooltip.sticky::after {
             top: 100%;
             left: -100px;
             margin-top: 5px;
@@ -3397,6 +3397,16 @@
                 if (e.target === modal) {
                     closeModal();
                 }
+            });
+            // Sticky info-tooltips: click to toggle, click-outside to close
+            document.querySelectorAll('.info-tooltip').forEach(el => {
+                el.addEventListener('click', (ev) => {
+                    ev.stopPropagation();
+                    el.classList.toggle('sticky');
+                });
+            });
+            document.addEventListener('click', () => {
+                document.querySelectorAll('.info-tooltip.sticky').forEach(el => el.classList.remove('sticky'));
             });
         });
 
