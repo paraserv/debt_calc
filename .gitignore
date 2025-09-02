@@ -8,3 +8,11 @@
 Thumbs.db
 .idea/
 .vscode/
+# Build artifacts
+/dist/
+/node_modules/
+
+# More local temp
+/tmp/
+*.cache
+
