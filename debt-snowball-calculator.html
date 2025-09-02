@@ -1034,7 +1034,10 @@
                     <span class="info-tooltip" data-tooltip="Drag and drop debts in the table below to set your own custom payoff order based on your personal priorities.">ℹ️</span>
                 </div>
             </div>
-            <button onclick="showComparison()" style="white-space: nowrap;">📊 Compare All Methods</button>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <button id="syncCustomBtn" class="small" title="Copy the current method’s order into Custom" onclick="syncCustomOrderToCurrentMethod()">🔁 Customize from <span id="syncMethodLabel">METHOD</span></button>
+                <button onclick="showComparison()" style="white-space: nowrap;">📊 Compare All Methods</button>
+            </div>
         </div>
 
         <h2>📊 Debt List</h2>
@@ -1347,6 +1350,7 @@
             // Don't re-sort the physical array - just update the display
             updateDebtTable();
             updateAmortizationTable();
+            updateSyncButtonState();
         }
 
         function updateDebtTable() {
@@ -1428,6 +1432,7 @@
                 row.addEventListener('drop', handleDrop);
                 row.addEventListener('dragleave', handleDragLeave);
             });
+            updateSyncButtonState();
         }
 
         function updateDebtField(debtId, field, value) {
@@ -1513,6 +1518,7 @@
             debts = debts.filter(d => d.id !== debtId);
             updateDebtTable();
             updateAmortizationTable();
+            updateSyncButtonState();
         }
 
         function handleDragStart(e, row) {
@@ -1555,6 +1561,7 @@
                     
                     updateDebtTable();
                     updateAmortizationTable();
+                    updateSyncButtonState();
                 }
             }
         }
@@ -3423,6 +3430,42 @@
                 console.warn('Theme init failed', e);
             }
         })();
+
+        function updateSyncButtonState() {
+            try {
+                const btn = document.getElementById('syncCustomBtn');
+                const label = document.getElementById('syncMethodLabel');
+                if (!btn || !label) return;
+                const pretty = currentMethod.toUpperCase();
+                label.textContent = pretty;
+                // disable if already custom and orders match
+                const isCustom = currentMethod === 'custom';
+                const sorted = [...debts];
+                sortDebtsCopy(sorted, isCustom ? 'custom' : currentMethod);
+                const ordersMatch = sorted.every((d, idx) => d.id === debts[idx].id);
+                btn.disabled = isCustom && ordersMatch;
+            } catch (e) {
+                console.warn('updateSyncButtonState failed', e);
+            }
+        }
+
+        function syncCustomOrderToCurrentMethod() {
+            try {
+                const methodToSync = currentMethod;
+                const sorted = [...debts];
+                sortDebtsCopy(sorted, methodToSync);
+                // Apply sorted order to the actual debts array
+                debts = sorted.map((d, i) => ({ ...d, customOrder: i + 1 }));
+                // Switch to custom without re-sorting
+                setMethod('custom', true);
+                updateDebtTable();
+                updateAmortizationTable();
+                updateSyncButtonState();
+            } catch (e) {
+                console.error('Failed to sync custom order:', e);
+                showError('Failed to sync custom order.');
+            }
+        }
 
         function exportToCSV() {
             try {
