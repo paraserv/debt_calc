@@ -3,6 +3,8 @@
 [![Deploy to GitHub Pages](https://github.com/paraserv/debt_calc/actions/workflows/pages.yml/badge.svg)](https://github.com/paraserv/debt_calc/actions/workflows/pages.yml)
 [![Tests](https://github.com/paraserv/debt_calc/actions/workflows/tests.yml/badge.svg)](https://github.com/paraserv/debt_calc/actions/workflows/tests.yml)
 [![CodeQL](https://github.com/paraserv/debt_calc/actions/workflows/codeql.yml/badge.svg)](https://github.com/paraserv/debt_calc/actions/workflows/codeql.yml)
+
+> Copy JSON copies your configuration to the clipboard for pasting (e.g., into a text editor or chat). Use Save/Load Configuration to write/read a JSON file.
 [![GitHub Pages](https://img.shields.io/badge/Pages-live-2ea44f)](https://paraserv.github.io/debt_calc/)
 
 A single-file, client-side calculator to compare debt payoff strategies and generate payoff schedules. No backend required.
