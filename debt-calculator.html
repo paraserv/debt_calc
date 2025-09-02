@@ -1078,7 +1078,10 @@
                 <button class="expand-collapse-btn" onclick="toggleExtraPaymentsList()">Show All</button>
             </div>
             <div class="extra-payments-list" id="extraPaymentsList"></div>
-            <button class="small success" onclick="addExtraPayment()">+ Add Extra Payment</button>
+            <div style="display:flex; gap:10px; margin-top:8px;">
+                <button class="small success" onclick="addExtraPayment()">+ Add Extra Payment</button>
+                <button class="small danger" onclick="removeAllExtraPayments()">🗑️ Remove All</button>
+            </div>
             <div class="debug-info" id="debugInfo" style="display: none;"></div>
         </div>
 
@@ -1490,8 +1493,11 @@
                 }
             }
             
-            updateDebtTable();
-            updateAmortizationTable();
+            if (window._recalcTimer) clearTimeout(window._recalcTimer);
+            window._recalcTimer = setTimeout(() => {
+                updateDebtTable();
+                updateAmortizationTable();
+            }, 150);
         }
 
         function addDebt() {
@@ -2132,6 +2138,9 @@
             
             // Show modal
             document.getElementById('scheduleModal').classList.add('show');
+            // Focus trap start
+            const content = document.querySelector('.schedule-modal-content');
+            if (content) content.setAttribute('tabindex', '-1'), content.focus();
             
             // Ensure modal is scrolled to top when opened
             setTimeout(() => {
@@ -2229,6 +2238,15 @@
             // Initialize the modal's calendar
             initializeModalCalendar(modalCalendarId);
             
+            // Click outside to close (treat as Cancel)
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) closeScheduleModal();
+            });
+            // ESC to close
+            document.addEventListener('keydown', (e) => {
+                const isOpen = document.getElementById('scheduleModal')?.classList.contains('show');
+                if (isOpen && e.key === 'Escape') closeScheduleModal();
+            });
             // Add event listener for custom frequency
             document.getElementById('scheduleFrequency').addEventListener('change', function() {
                 const customGroup = document.getElementById('customIntervalGroup');
@@ -2692,6 +2710,15 @@
             
             console.log('Extra Payments:', extraPayments);
             updateAmortizationTable();
+        }
+
+        function removeAllExtraPayments() {
+            if (!confirm('Remove all scheduled extra payments?')) return;
+            extraPayments = [];
+            const container = document.getElementById('extraPaymentsList');
+            container.innerHTML = '';
+            addExtraPayment();
+            updateExtraPayments();
         }
 
         function calculatePayoffSchedule(debtList = null, sortMethod = currentMethod) {
