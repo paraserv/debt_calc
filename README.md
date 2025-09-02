@@ -48,3 +48,8 @@ MIT — see `LICENSE`.
 ## Analytics
 - Local-only analytics toggle records counts (no network).
 - Toggle button located in the header; state persists in your browser only.
+
+## Showcase
+![demo](https://user-images.githubusercontent.com/placeholder/animated-gif.gif)
+
+> Tip: Open Compare All Methods, then click a card to adopt that method.
