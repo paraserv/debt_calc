@@ -14,6 +14,7 @@
 <body>
   <h1>Unit Tests</h1>
   <div id="results"></div>
+  <div id="tests-status" data-done="false" style="display:none"></div>
   <script>
     // Lightweight test helper
     const tests = [];
@@ -62,6 +63,7 @@
         }
         out.appendChild(div);
       }
+      document.getElementById('tests-status').dataset.done = 'true';
     })();
   </script>
 </body>
