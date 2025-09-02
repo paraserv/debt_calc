@@ -1055,6 +1055,7 @@
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
             <span class="info-tooltip" style="font-size: 16px; color: #4299e1; cursor: help;" data-tooltip="The # column shows the payoff order for your selected method. Debt #1 gets all extra payments first, then #2, etc. The order changes when you switch methods. Drag rows to create a custom order.">ℹ️</span>
             <button class="small success" onclick="addDebt()">+ Add Debt</button>
+            <button class="small danger" onclick="removeAllDebts()">🗑️ Remove All</button>
         </div>
         <div class="scroll-container">
             <table id="debtTable">
@@ -1108,6 +1109,7 @@
             <button onclick="exportDebtListToCSV()">📥 Export Debt List to CSV</button>
             <button onclick="saveConfiguration()">💾 Save Configuration</button>
             <button onclick="loadConfiguration()">📂 Load Configuration</button>
+            <button class="danger" onclick="resetAll()">🧹 Reset All</button>
         </div>
     </div>
 
@@ -1528,6 +1530,13 @@
             updateDebtTable();
             updateAmortizationTable();
             persistToLocalStorage();
+            // Scroll to newly added row
+            setTimeout(() => {
+                const tbody = document.getElementById('debtTableBody');
+                if (tbody && tbody.lastElementChild) {
+                    tbody.lastElementChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 0);
         }
 
         function removeDebt(debtId) {
@@ -1535,6 +1544,15 @@
             updateDebtTable();
             updateAmortizationTable();
             updateSyncButtonState();
+            persistToLocalStorage();
+        }
+
+        function removeAllDebts() {
+            if (!confirm('Remove all debts?')) return;
+            debts = [];
+            nextDebtId = 1;
+            updateDebtTable();
+            updateAmortizationTable();
             persistToLocalStorage();
         }
 
@@ -1626,6 +1644,7 @@
             
             // Check if this payment is before start date
             updateExtraPayments();
+            row.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
         
         function formatMonthYear(dateStr) {
@@ -3876,6 +3895,25 @@
             } catch (e) {
                 console.warn('Restore failed', e);
             }
+        }
+
+        function resetAll() {
+            if (!confirm('Reset all data and clear storage?')) return;
+            localStorage.removeItem('adc_state');
+            // Restore to basic defaults
+            debts = [];
+            nextDebtId = 1;
+            addDebt();
+            extraPayments = [];
+            const list = document.getElementById('extraPaymentsList');
+            if (list) { list.innerHTML = ''; addExtraPayment(); }
+            totalMonthlyPayment = 3000;
+            document.getElementById('totalMonthly').value = totalMonthlyPayment;
+            document.getElementById('startDate').value = '';
+            setMethod('snowball');
+            updateDebtTable();
+            updateAmortizationTable();
+            persistToLocalStorage();
         }
 
         // Event listeners
