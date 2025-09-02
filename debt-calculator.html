@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Advanced Debt Payoff Calculator</title>
+    <meta name="description" content="Compare Snowball, Avalanche, Cash Flow Index, Credit Score, and Custom strategies. Build payoff schedules, export CSV, and track progress.">
+    <meta property="og:title" content="Advanced Debt Payoff Calculator">
+    <meta property="og:description" content="Interactive tool to plan and compare debt payoff strategies with exports and dark mode.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://paraserv.github.io/debt_calc/">
+    <meta name="theme-color" content="#0f172a">
     <style>
         * {
             margin: 0;
@@ -1081,6 +1087,7 @@
             <div style="display:flex; gap:10px; margin-top:8px;">
                 <button class="small success" onclick="addExtraPayment()">+ Add Extra Payment</button>
                 <button class="small danger" onclick="removeAllExtraPayments()">🗑️ Remove All</button>
+                <button class="small" onclick="copyConfigurationJSON()">📋 Copy JSON</button>
             </div>
             <div class="debug-info" id="debugInfo" style="display: none;"></div>
         </div>
@@ -1354,6 +1361,7 @@
             updateDebtTable();
             updateAmortizationTable();
             updateSyncButtonState();
+            persistToLocalStorage();
         }
 
         function updateDebtTable() {
@@ -1436,6 +1444,7 @@
                 row.addEventListener('dragleave', handleDragLeave);
             });
             updateSyncButtonState();
+            persistToLocalStorage();
         }
 
         function updateDebtField(debtId, field, value) {
@@ -1518,6 +1527,7 @@
             });
             updateDebtTable();
             updateAmortizationTable();
+            persistToLocalStorage();
         }
 
         function removeDebt(debtId) {
@@ -1525,6 +1535,7 @@
             updateDebtTable();
             updateAmortizationTable();
             updateSyncButtonState();
+            persistToLocalStorage();
         }
 
         function handleDragStart(e, row) {
@@ -2535,6 +2546,7 @@
         function closeScheduleModal() {
             document.getElementById('scheduleModal').classList.remove('show');
             scheduleModalRow = null;
+            persistToLocalStorage();
         }
         
         function applySchedule() {
@@ -2709,7 +2721,9 @@
             }
             
             console.log('Extra Payments:', extraPayments);
-            updateAmortizationTable();
+            persistToLocalStorage();
+            if (window._recalcTimer) clearTimeout(window._recalcTimer);
+            window._recalcTimer = setTimeout(() => updateAmortizationTable(), 150);
         }
 
         function removeAllExtraPayments() {
@@ -3435,6 +3449,8 @@
             document.addEventListener('click', () => {
                 document.querySelectorAll('.info-tooltip.sticky').forEach(el => el.classList.remove('sticky'));
             });
+            // Restore app state
+            restoreFromLocalStorage();
         });
 
         function closeModal() {
@@ -3498,6 +3514,7 @@
                 updateDebtTable();
                 updateAmortizationTable();
                 updateSyncButtonState();
+                persistToLocalStorage();
             } catch (e) {
                 console.error('Failed to sync custom order:', e);
                 showError('Failed to sync custom order.');
@@ -3696,7 +3713,8 @@
                     totalMonthlyPayment: totalMonthlyPayment,
                     currentMethod: currentMethod,
                     startDate: document.getElementById('startDate').value,
-                    customOrder: debts.map(d => ({ id: d.id, order: d.customOrder }))
+                    customOrder: debts.map(d => ({ id: d.id, order: d.customOrder })),
+                    version: 1
                 };
                 
                 const json = JSON.stringify(config, null, 2);
@@ -3712,6 +3730,29 @@
             } catch (error) {
                 console.error('Error saving configuration:', error);
                 showError('Error saving configuration.');
+            }
+        }
+
+        function copyConfigurationJSON() {
+            try {
+                const data = {
+                    debts,
+                    extraPayments,
+                    totalMonthlyPayment,
+                    currentMethod,
+                    startDate: document.getElementById('startDate').value,
+                    version: 1
+                };
+                const json = JSON.stringify(data, null, 2);
+                navigator.clipboard.writeText(json).then(() => {
+                    const msg = document.createElement('div');
+                    msg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #4b5563; color: white; padding: 10px 14px; border-radius: 6px; z-index: 10000;';
+                    msg.textContent = '✓ Configuration copied to clipboard';
+                    document.body.appendChild(msg);
+                    setTimeout(() => document.body.removeChild(msg), 2000);
+                });
+            } catch (e) {
+                console.error('Copy JSON failed', e);
             }
         }
 
@@ -3765,6 +3806,7 @@
                         
                         document.getElementById('totalMonthly').value = totalMonthlyPayment;
                         setMethod(currentMethod);
+                        persistToLocalStorage();
                         
                         const container = document.getElementById('extraPaymentsList');
                         container.innerHTML = '';
@@ -3793,6 +3835,47 @@
                 reader.readAsText(file);
             };
             input.click();
+        }
+
+        function persistToLocalStorage() {
+            try {
+                const payload = {
+                    v: 1,
+                    debts,
+                    extraPayments,
+                    totalMonthlyPayment,
+                    currentMethod,
+                    startDate: document.getElementById('startDate').value
+                };
+                localStorage.setItem('adc_state', JSON.stringify(payload));
+            } catch (e) {
+                console.warn('Persist failed', e);
+            }
+        }
+
+        function restoreFromLocalStorage() {
+            try {
+                const raw = localStorage.getItem('adc_state');
+                if (!raw) return;
+                const s = JSON.parse(raw);
+                if (!s || typeof s !== 'object') return;
+                debts = s.debts || debts;
+                extraPayments = s.extraPayments || extraPayments;
+                totalMonthlyPayment = s.totalMonthlyPayment || totalMonthlyPayment;
+                currentMethod = s.currentMethod || currentMethod;
+                if (s.startDate) document.getElementById('startDate').value = s.startDate;
+                document.getElementById('totalMonthly').value = totalMonthlyPayment;
+                setMethod(currentMethod);
+                // rebuild extra payments UI
+                const container = document.getElementById('extraPaymentsList');
+                container.innerHTML = '';
+                if (extraPayments.length === 0) addExtraPayment();
+                else extraPayments.forEach(p => addExtraPayment(p));
+                updateDebtTable();
+                updateAmortizationTable();
+            } catch (e) {
+                console.warn('Restore failed', e);
+            }
         }
 
         // Event listeners

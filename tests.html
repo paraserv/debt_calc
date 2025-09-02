@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tests - Advanced Debt Payoff Calculator</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 20px; }
+    .pass { color: #16a34a; }
+    .fail { color: #dc2626; }
+    pre { background: #0b1220; color: #e5e7eb; padding: 12px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h1>Unit Tests</h1>
+  <div id="results"></div>
+  <script>
+    // Lightweight test helper
+    const tests = [];
+    function test(name, fn) { tests.push({ name, fn }); }
+    function assertAlmostEqual(a, b, eps = 1e-6) {
+      if (Math.abs(a - b) > eps) throw new Error(`Expected ${a} ≈ ${b}`);
+    }
+    function assertEqual(a, b) { if (a !== b) throw new Error(`Expected ${a} === ${b}`); }
+
+    // Import functions by recreating minimal copies (kept in sync with main file)
+    function calculateMonthlyInterest(balance, rate) { return balance * (rate / 100 / 12); }
+    function calculateCFI(balance, minPayment, rate) {
+      if (!minPayment || minPayment === 0) return Infinity;
+      const monthlyInterest = calculateMonthlyInterest(balance, rate);
+      const principal = minPayment - monthlyInterest;
+      if (principal <= 0) return Infinity;
+      return balance / principal;
+    }
+
+    test('monthly interest basic', () => {
+      assertAlmostEqual(calculateMonthlyInterest(1200, 12), 12);
+      assertAlmostEqual(calculateMonthlyInterest(0, 20), 0);
+    });
+
+    test('CFI with sufficient principal', () => {
+      const cfi = calculateCFI(1000, 50, 12);
+      if (!isFinite(cfi)) throw new Error('CFI should be finite');
+    });
+
+    test('CFI Infinity when payment <= interest', () => {
+      const cfi = calculateCFI(1000, 5, 30); // interest > payment
+      if (cfi !== Infinity) throw new Error('CFI expected Infinity');
+    });
+
+    (async function run(){
+      const out = document.getElementById('results');
+      for (const t of tests) {
+        const div = document.createElement('div');
+        try {
+          await t.fn();
+          div.textContent = `✓ ${t.name}`;
+          div.className = 'pass';
+        } catch (e) {
+          div.textContent = `✗ ${t.name} -> ${e.message}`;
+          div.className = 'fail';
+        }
+        out.appendChild(div);
+      }
+    })();
+  </script>
+</body>
+</html>
