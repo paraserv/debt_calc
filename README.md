@@ -1,5 +1,8 @@
 # Advanced Debt Payoff Calculator
 
+[![Deploy to GitHub Pages](https://github.com/paraserv/debt_calc/actions/workflows/pages.yml/badge.svg)](https://github.com/paraserv/debt_calc/actions/workflows/pages.yml)
+[![GitHub Pages](https://img.shields.io/badge/Pages-live-2ea44f)](https://paraserv.github.io/debt_calc/)
+
 A single-file, client-side calculator to compare debt payoff strategies and generate payoff schedules. No backend required.
 
 - Live site: https://paraserv.github.io/debt_calc/
@@ -25,6 +28,10 @@ A single-file, client-side calculator to compare debt payoff strategies and gene
 
 ## Deploy (GitHub Pages)
 This repo uses GitHub Pages + Actions. On push to `main`, the site is deployed automatically to GitHub Pages.
+
+## Feedback and feature requests
+- Found a bug? Open a [bug report](https://github.com/paraserv/debt_calc/issues/new?template=bug_report.md).
+- Have an idea? Open a [feature request](https://github.com/paraserv/debt_calc/issues/new?template=feature_request.md).
 
 ## License
 MIT — see `LICENSE`.
