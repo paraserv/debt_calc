@@ -967,6 +967,7 @@
         <h1>💰 Advanced Debt Payoff Calculator</h1>
         <div style="display:flex;justify-content:flex-end;margin-bottom:10px;gap:10px;">
             <button class="small" id="themeToggle" title="Toggle dark mode">🌙 Dark</button>
+            <button class="small" id="analyticsToggle" title="Toggle local analytics (anonymous, stored only in your browser)">📊 Analytics: Off</button>
         </div>
         <p class="subtitle">Compare strategies and optimize your debt payoff plan</p>
         
@@ -1088,7 +1089,7 @@
             <div style="display:flex; gap:10px; margin-top:8px;">
                 <button class="small success" onclick="addExtraPayment()">+ Add Extra Payment</button>
                 <button class="small danger" onclick="removeAllExtraPayments()">🗑️ Remove All</button>
-                <button class="small" onclick="copyConfigurationJSON()">📋 Copy JSON</button>
+                <button class="small" onclick="copyConfigurationJSON()" title="Copy current configuration (debts, extra payments, method, totals, start date) to clipboard as JSON. Paste into a text editor or share with someone; restore using Load Configuration (JSON file).">📋 Copy JSON</button>
             </div>
             <div class="debug-info" id="debugInfo" style="display: none;"></div>
         </div>
@@ -1113,9 +1114,9 @@
         </div>
     </div>
 
-    <div id="comparisonModal" class="modal">
-        <div class="modal-content">
-            <h2>Method Comparison</h2>
+    <div id="comparisonModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="comparisonTitle">
+        <div class="modal-content" tabindex="-1">
+            <h2 id="comparisonTitle">Method Comparison</h2>
             <div id="comparisonResults" class="comparison-table"></div>
             <button onclick="closeModal()" style="margin-top: 20px;">Close</button>
         </div>
@@ -2154,8 +2155,9 @@
             const amountInput = scheduleModalRow.querySelector('input[type="number"]');
             const descInput = scheduleModalRow.querySelector('input[type="text"]');
             
-            // Set initial values in the modal
-            document.getElementById('scheduleStartDate').value = dateInput.value || '';
+            // Set initial values in the modal (default to row date or global start date)
+            const globalStart = document.getElementById('startDate').value || '';
+            document.getElementById('scheduleStartDate').value = (dateInput.value || globalStart);
             document.getElementById('scheduleAmount').value = amountInput.value || '';
             document.getElementById('scheduleDescription').value = descInput.value || 'Quarterly bonus';
             
@@ -2174,7 +2176,12 @@
             document.getElementById('scheduleModal').classList.add('show');
             // Focus trap start
             const content = document.querySelector('.schedule-modal-content');
-            if (content) content.setAttribute('tabindex', '-1'), content.focus();
+            if (content) {
+                content.setAttribute('tabindex', '-1');
+                // Prefer focusing the modal date selector for convenience
+                const dateBtn = content.querySelector('.date-display');
+                (dateBtn || content).focus();
+            }
             
             // Ensure modal is scrolled to top when opened
             setTimeout(() => {
@@ -3467,6 +3474,7 @@
                 el.addEventListener('click', (ev) => {
                     ev.stopPropagation();
                     el.classList.toggle('sticky');
+                    window.adcTrack && window.adcTrack('tooltip_click');
                 });
             });
             document.addEventListener('click', () => {
@@ -3505,6 +3513,21 @@
             } catch (e) {
                 console.warn('Theme init failed', e);
             }
+        })();
+
+        // Local-only analytics (counts actions in localStorage; disabled by default)
+        (function initAnalytics(){
+            const key = 'adc_analytics';
+            function get() { try { return JSON.parse(localStorage.getItem(key)) || { enabled:false, counts:{} }; } catch { return { enabled:false, counts:{} }; } }
+            function set(v) { localStorage.setItem(key, JSON.stringify(v)); }
+            function updateButton(){ const st = get(); const b = document.getElementById('analyticsToggle'); if (b) b.textContent = `📊 Analytics: ${st.enabled?'On':'Off'}`; }
+            document.addEventListener('DOMContentLoaded', ()=>{
+                updateButton();
+                const b = document.getElementById('analyticsToggle');
+                if (b) b.addEventListener('click', ()=>{ const st=get(); st.enabled=!st.enabled; set(st); updateButton(); });
+            });
+            // Expose a tiny counter
+            window.adcTrack = function(name){ const st=get(); if(!st.enabled) return; st.counts[name]=(st.counts[name]||0)+1; set(st); };
         })();
 
         function updateSyncButtonState() {
