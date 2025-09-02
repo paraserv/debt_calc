@@ -16,7 +16,7 @@ A single-file, client-side calculator to compare debt payoff strategies and gene
 - Drag and drop to customize payoff order
 
 ## Quick start
-- Open `debt-snowball-calculator.html` directly in a browser, or visit the live site above.
+- Open `debt-calculator.html` directly in a browser, or visit the live site above.
 
 ## Development
 - The app is a single HTML file with embedded CSS/JS for portability.
