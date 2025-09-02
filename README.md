@@ -44,3 +44,7 @@ MIT — see `LICENSE`.
 - Method cards show explanations on hover (0.5s delay).
 - Most buttons show a short tooltip on hover.
 - Press Esc to close modals; Enter confirms when available.
+
+## Analytics
+- Local-only analytics toggle records counts (no network).
+- Toggle button located in the header; state persists in your browser only.
