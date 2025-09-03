@@ -3462,6 +3462,9 @@
                 updateSummary(schedule);
                 updatePayoffDates(schedule.debtPayoffMonths);
                 
+                // Auto-save state after updates
+                autoSave();
+                
             } catch (error) {
                 console.error('Error updating amortization table:', error);
             }
@@ -3648,11 +3651,10 @@
                 // Create simplified header
                 header.innerHTML = `
                     <th>Month</th>
-                    <th>Phase</th>
-                    <th>Target Card</th>
-                    <th>Utilization</th>
-                    <th>Payment Details</th>
-                    <th>Progress</th>
+                    <th>Target Card(s)</th>
+                    <th>Utilization Change</th>
+                    <th>Payment</th>
+                    <th>Overall Progress</th>
                 `;
                 
                 body.innerHTML = '';
@@ -3688,10 +3690,10 @@
                             // Add phase completion row
                             const completionRow = body.insertRow();
                             completionRow.innerHTML = `
-                                <td colspan="6" style="background: #1a202c; color: #68d391; 
+                                <td colspan="5" style="background: #1a202c; color: #68d391; 
                                          padding: 8px; text-align: center; font-weight: bold; 
                                          border: 1px solid #22543d;">
-                                    ✅ ${previousPhase} Complete (${index - phaseStartMonth} months)
+                                    ✅ Complete: ${previousPhase} (${index - phaseStartMonth} months)
                                 </td>
                             `;
                         }
@@ -3700,9 +3702,9 @@
                         if (monthData.phase && monthData.phase !== 'Complete') {
                             const phaseRow = body.insertRow();
                             phaseRow.innerHTML = `
-                                <td colspan="6" style="background: #2d3748; 
+                                <td colspan="5" style="background: #2d3748; 
                                          color: #e2e8f0; padding: 12px; text-align: center; font-weight: bold;">
-                                    🎯 ${monthData.phase}${getPhaseThresholdText(monthData.phase)}
+                                    🚀 Begin: ${monthData.phase}${getPhaseThresholdText(monthData.phase)}
                                 </td>
                             `;
                             phaseStartMonth = index;
@@ -3751,54 +3753,61 @@
                     const overallUtil = totalCreditLimit > 0 ? (totalCreditBalance / totalCreditLimit) * 100 : 0;
                     
                     if (activeCards.length > 0) {
-                        activeCards.forEach((card, cardIndex) => {
-                            const row = body.insertRow();
-                            
+                        // Combine all active cards for this month into one row
+                        const row = body.insertRow();
+                        
+                        // Build cards list with utilization changes
+                        let cardsHTML = '';
+                        let paymentsHTML = '';
+                        let totalExtraForMonth = 0;
+                        
+                        activeCards.forEach((card, idx) => {
                             // Utilization color coding
                             let utilColor = '#38a169'; // green
                             if (card.endUtil > 89) utilColor = '#e53e3e'; // red
                             else if (card.endUtil > 49) utilColor = '#ed8936'; // orange
                             else if (card.endUtil > 29) utilColor = '#ecc94b'; // yellow
                             
-                            // Format utilization change arrow
                             const utilArrow = card.utilChange > 0 ? '↓' : '↑';
                             const utilChangeColor = card.utilChange > 0 ? '#38a169' : '#e53e3e';
                             
-                            row.innerHTML = `
-                                <td>${cardIndex === 0 ? `<strong>${monthData.month}</strong>` : ''}</td>
-                                <td style="font-size: 12px;">${cardIndex === 0 ? (monthData.phaseProgress ? 
-                                    `${monthData.phaseProgress}%` : '') : ''}</td>
-                                <td><strong>${card.name}</strong></td>
-                                <td>
-                                    <div style="display: flex; align-items: center; gap: 5px;">
-                                        <span>${card.startUtil.toFixed(1)}%</span>
-                                        <span style="color: ${utilChangeColor};">→</span>
-                                        <span style="color: ${utilColor}; font-weight: bold;">
-                                            ${card.endUtil.toFixed(1)}%
-                                        </span>
-                                        <span style="color: ${utilChangeColor}; font-size: 11px;">
-                                            ${utilArrow}${Math.abs(card.utilChange).toFixed(1)}%
-                                        </span>
-                                    </div>
-                                </td>
-                                <td>
-                                    ${formatCurrency(card.minPayment)} + 
-                                    <span style="color: #667eea; font-weight: bold;">
-                                        ${formatCurrency(card.extraPayment)}
-                                    </span>
-                                    = ${formatCurrency(card.payment)}
-                                </td>
-                                <td style="font-size: 12px;">
-                                    Overall: ${overallUtil.toFixed(1)}%
-                                </td>
+                            if (idx > 0) cardsHTML += '<br>';
+                            cardsHTML += `<strong>${card.name}</strong>`;
+                            
+                            if (idx > 0) paymentsHTML += '<br>';
+                            paymentsHTML += `
+                                <span>${card.startUtil.toFixed(1)}%</span>
+                                <span style="color: ${utilChangeColor};">→</span>
+                                <span style="color: ${utilColor}; font-weight: bold;">
+                                    ${card.endUtil.toFixed(1)}%
+                                </span>
+                                <span style="color: ${utilChangeColor}; font-size: 11px;">
+                                    ${utilArrow}${Math.abs(card.utilChange).toFixed(1)}%
+                                </span>
                             `;
+                            
+                            totalExtraForMonth += card.extraPayment;
                         });
+                        
+                        row.innerHTML = `
+                            <td><strong>${monthData.month}</strong></td>
+                            <td>${cardsHTML}</td>
+                            <td>${paymentsHTML}</td>
+                            <td>
+                                <span style="color: #a0aec0;">${formatCurrency(totalPayments - totalExtraForMonth)}</span> + 
+                                <span style="color: #667eea; font-weight: bold;">${formatCurrency(totalExtraForMonth)}</span>
+                                = <strong>${formatCurrency(totalPayments)}</strong>
+                            </td>
+                            <td style="font-size: 12px;">
+                                Overall: ${overallUtil.toFixed(1)}%<br>
+                                <span style="color: #a0aec0;">Phase: ${monthData.phaseProgress || 0}%</span>
+                            </td>
+                        `;
                     } else if (monthData.month === 1 || (monthData.month % 12) === 1) {
                         // Show summary row for months with no active payments (minimums only)
                         const row = body.insertRow();
                         row.innerHTML = `
                             <td><strong>${monthData.month}</strong></td>
-                            <td style="font-size: 12px;">${monthData.phaseProgress || ''}%</td>
                             <td colspan="2" style="color: #718096; font-style: italic;">
                                 All cards at minimum payments
                             </td>
@@ -3815,9 +3824,8 @@
                     .reduce((sum, b) => sum + (b || 0), 0);
                 
                 summaryRow.innerHTML = `
-                    <td colspan="6" style="background: #f7fafc; padding: 15px; text-align: center;">
-                        <strong>🎉 All Debts Paid Off!</strong> 
-                        Total time: ${Math.floor(totalMonths / 12)}y ${totalMonths % 12}m
+                    <td colspan="5" style="background: #1a202c; color: #68d391; padding: 15px; text-align: center; font-weight: bold;">
+                        🎉 All Debts Paid Off! Total time: ${Math.floor(totalMonths / 12)}y ${totalMonths % 12}m
                     </td>
                 `;
                 
@@ -4464,6 +4472,22 @@
             setTimeout(() => document.body.removeChild(successMsg), 3000);
         }
 
+        function autoSave() {
+            try {
+                const payload = {
+                    debts: debts,
+                    extraPayments: extraPayments,
+                    totalMonthlyPayment: totalMonthlyPayment,
+                    currentMethod: currentMethod,
+                    startDate: document.getElementById('startDate').value,
+                    timestamp: new Date().toISOString()
+                };
+                localStorage.setItem('adc_state', JSON.stringify(payload));
+            } catch (e) {
+                console.warn('Auto-save failed', e);
+            }
+        }
+        
         function saveConfiguration() {
             try {
                 const config = {
@@ -4665,10 +4689,52 @@
 
         // Initialize
         initializeStartDate();
-        // Start with an empty extra payment row
-        addExtraPayment();
-        updateDebtTable();
-        updateAmortizationTable();
+        
+        // Auto-load saved configuration if available
+        try {
+            const savedState = localStorage.getItem('adc_state');
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                if (state && state.debts && state.debts.length > 0) {
+                    // Restore saved state
+                    debts = state.debts || [];
+                    extraPayments = state.extraPayments || [];
+                    totalMonthlyPayment = state.totalMonthlyPayment || 5000;
+                    currentMethod = state.currentMethod || 'snowball';
+                    if (state.startDate) {
+                        document.getElementById('startDate').value = state.startDate;
+                    }
+                    document.getElementById('totalMonthly').value = totalMonthlyPayment;
+                    
+                    // Reconstruct debt IDs
+                    nextDebtId = Math.max(...debts.map(d => d.id || 0), 0) + 1;
+                    
+                    // Update UI
+                    setMethod(currentMethod);
+                    updateDebtTable();
+                    updateExtraPaymentsTable();
+                    updateAmortizationTable();
+                    
+                    console.log('Auto-loaded saved configuration');
+                } else {
+                    // No saved data, start with defaults
+                    addExtraPayment();
+                    updateDebtTable();
+                    updateAmortizationTable();
+                }
+            } else {
+                // No saved data, start with defaults
+                addExtraPayment();
+                updateDebtTable();
+                updateAmortizationTable();
+            }
+        } catch (e) {
+            console.warn('Failed to auto-load saved state:', e);
+            // Fall back to defaults
+            addExtraPayment();
+            updateDebtTable();
+            updateAmortizationTable();
+        }
     </script>
 </body>
 </html>
