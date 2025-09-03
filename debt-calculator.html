@@ -3289,10 +3289,17 @@
                 header.innerHTML = '<th>Month</th><th>Date</th><th>Extra</th>';
                 body.innerHTML = '';
                 
-                // Add toggle button for waterfall method
+                // Add control row with pop-out icon on the left
+                const controlRow = body.insertRow();
                 if (currentMethod === 'utilization') {
-                    const toggleRow = body.insertRow();
-                    toggleRow.innerHTML = `
+                    controlRow.innerHTML = `
+                        <td style="text-align: center; padding: 5px; background: #f7fafc; width: 40px;">
+                            <button onclick="openScheduleInPopup()" style="background: transparent; 
+                                    border: none; cursor: pointer; font-size: 20px; padding: 0;"
+                                    title="Open in new window">
+                                🔲
+                            </button>
+                        </td>
                         <td colspan="100%" style="text-align: center; padding: 10px; background: #f7fafc;">
                             <button onclick="updateSimplifiedWaterfallView()" style="padding: 8px 16px; 
                                     background: #4c51bf; 
@@ -3300,13 +3307,23 @@
                                     border-radius: 5px; cursor: pointer; font-weight: bold;">
                                 📈 Show Simplified Waterfall View
                             </button>
-                            <button onclick="openScheduleInPopup()" style="padding: 8px 16px; 
-                                    background: #2d3748; color: #e2e8f0; border: 1px solid #4a5568; 
-                                    border-radius: 5px; cursor: pointer; margin-left: 10px;">
-                                🔲 Pop Out Schedule
-                            </button>
                             <span style="margin: 0 10px; color: #718096;">
                                 Focus on utilization changes and phase progression
+                            </span>
+                        </td>
+                    `;
+                } else {
+                    controlRow.innerHTML = `
+                        <td style="text-align: center; padding: 5px; background: #f7fafc; width: 40px;">
+                            <button onclick="openScheduleInPopup()" style="background: transparent; 
+                                    border: none; cursor: pointer; font-size: 20px; padding: 0;"
+                                    title="Open in new window">
+                                🔲
+                            </button>
+                        </td>
+                        <td colspan="100%" style="text-align: center; padding: 10px; background: #f7fafc;">
+                            <span style="color: #718096; font-size: 14px;">
+                                ${currentMethod.charAt(0).toUpperCase() + currentMethod.slice(1)} Method Payoff Schedule
                             </span>
                         </td>
                     `;
@@ -3441,9 +3458,19 @@
                 return;
             }
             
-            // Get current schedule HTML
+            // Get current schedule HTML and clean it
             const header = document.getElementById('amortizationHeader').outerHTML;
-            const body = document.getElementById('amortizationBody').outerHTML;
+            const bodyElement = document.getElementById('amortizationBody').cloneNode(true);
+            
+            // Remove the first row if it contains control buttons
+            const firstRow = bodyElement.querySelector('tr');
+            if (firstRow && (firstRow.innerHTML.includes('Show Simplified') || 
+                firstRow.innerHTML.includes('Show Detailed') || 
+                firstRow.innerHTML.includes('Pop Out'))) {
+                firstRow.remove();
+            }
+            
+            const body = bodyElement.outerHTML;
             const currentMethodName = currentMethod.charAt(0).toUpperCase() + currentMethod.slice(1);
             
             // Build the popup HTML
@@ -3596,19 +3623,21 @@
                 
                 body.innerHTML = '';
                 
-                // Add view toggle button row
+                // Add view toggle button row with pop-out icon on the left
                 const toggleRow = body.insertRow();
                 toggleRow.innerHTML = `
-                    <td colspan="6" style="text-align: center; padding: 10px; background: #f7fafc;">
+                    <td style="text-align: center; padding: 5px; background: #f7fafc; width: 40px;">
+                        <button onclick="openScheduleInPopup()" style="background: transparent; 
+                                border: none; cursor: pointer; font-size: 20px; padding: 0;"
+                                title="Open in new window">
+                            🔲
+                        </button>
+                    </td>
+                    <td colspan="5" style="text-align: center; padding: 10px; background: #f7fafc;">
                         <button onclick="updateAmortizationTable()" style="padding: 8px 16px; 
                                 background: #4c51bf; color: white; border: none; 
                                 border-radius: 5px; cursor: pointer;">
                             📊 Show Detailed View
-                        </button>
-                        <button onclick="openScheduleInPopup()" style="padding: 8px 16px; 
-                                background: #2d3748; color: #e2e8f0; border: 1px solid #4a5568; 
-                                border-radius: 5px; cursor: pointer; margin-left: 10px;">
-                            🔲 Pop Out Schedule
                         </button>
                         <span style="margin: 0 10px; color: #718096;">
                             Simplified view shows only cards being actively paid down
