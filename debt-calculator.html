@@ -984,6 +984,25 @@
         body.dark .total-interest-cell { color: #f87171 !important; }
         body.dark .total-principal-cell { color: #34d399 !important; }
         body.dark .totals-subheader-cell { background: #0b1220 !important; color: #cbd5e1 !important; }
+        /* Fix bright backgrounds in various elements */
+        body.dark .notification { background: #1f2937 !important; color: #e5e7eb !important; }
+        body.dark .notification-warning { background: #2d2618 !important; color: #fbbf24 !important; }
+        body.dark .notification-error { background: #2d1a1a !important; color: #f87171 !important; }
+        body.dark .notification-success { background: #1a2d1f !important; color: #34d399 !important; }
+        body.dark .debt-group { background: #0f172a !important; }
+        body.dark .debt-items { background: #0b1220 !important; }
+        body.dark .debt-header { background: #111827 !important; }
+        body.dark .help-text { background: #1f2937 !important; color: #9ca3af !important; }
+        body.dark .before-start { background: #2d1a1a !important; }
+        body.dark .before-start-warning { color: #fbbf24 !important; }
+        body.dark .payment-timeline { background: #0f172a !important; }
+        body.dark .timeline-container { background: #0b1220 !important; }
+        body.dark .error-message { background: #2d1a1a !important; color: #f87171 !important; }
+        body.dark .warning-message { background: #2d2618 !important; color: #fbbf24 !important; }
+        body.dark .info-message { background: #1a2333 !important; color: #60a5fa !important; }
+        body.dark .phase-transition { background: #1f2937 !important; border-color: #374151 !important; }
+        body.dark .phase-complete { background: #1a2d1f !important; border-color: #34d399 !important; }
+        body.dark .payoff-collapse { background: #1f2937 !important; color: #9ca3af !important; }
         body.dark .schedule-preview { background: #0b1220; border: 1px solid #1f2937; }
         body.dark .payoff-collapse { background: #0f172a !important; color: #9ca3af !important; border: 1px solid #1f2937; }
     </style>
@@ -1193,6 +1212,11 @@
         let nextDebtId = 4;
         let startDate = new Date();
         let lastCalculatedMinPayments = {};
+        
+        // Helper function for theme-aware colors
+        function getThemeColor(lightColor, darkColor) {
+            return document.body.classList.contains('dark') ? darkColor : lightColor;
+        }
 
         // Initialize start date to current month
         function initializeStartDate() {
@@ -3359,7 +3383,7 @@
                 debts.forEach(() => {
                     subHeaderRow.innerHTML += '<td class="totals-subheader-cell"><strong>Payment</strong></td><td class="totals-subheader-cell"><strong>Interest</strong></td><td class="totals-subheader-cell"><strong>Balance</strong></td>';
                 });
-                subHeaderRow.innerHTML += '<td class="totals-subheader-cell" style="background: #2d3748; color: #e2e8f0;"><strong>Payment</strong></td><td class="totals-subheader-cell" style="background: #2d3748; color: #e2e8f0;"><strong>Interest</strong></td><td class="totals-subheader-cell" style="background: #2d3748; color: #e2e8f0;"><strong>Principal</strong></td><td class="totals-subheader-cell" style="background: #2d3748; color: #e2e8f0;"><strong>Balance</strong></td>';
+                subHeaderRow.innerHTML += `<td class="totals-subheader-cell" style="background: ${getThemeColor('#f7fafc', '#2d3748')}; color: ${getThemeColor('#4a5568', '#e2e8f0')};"><strong>Payment</strong></td><td class="totals-subheader-cell" style="background: ${getThemeColor('#f7fafc', '#2d3748')}; color: ${getThemeColor('#4a5568', '#e2e8f0')};"><strong>Interest</strong></td><td class="totals-subheader-cell" style="background: ${getThemeColor('#f7fafc', '#2d3748')}; color: ${getThemeColor('#4a5568', '#e2e8f0')};"><strong>Principal</strong></td><td class="totals-subheader-cell" style="background: ${getThemeColor('#f7fafc', '#2d3748')}; color: ${getThemeColor('#4a5568', '#e2e8f0')};"><strong>Balance</strong></td>`;
                 
                 let rowsToShow = [];
                 if (showFull || schedule.length <= 24) {
@@ -3378,11 +3402,11 @@
                         const row = body.insertRow();
                         row.style.cursor = 'pointer';
                         row.onclick = () => updateAmortizationTable(true);
-                        row.innerHTML = `<td colspan="100%" class="schedule-ellipsis schedule-ellipsis-row" style="background: #f0f4f8; padding: 15px; text-align: left; border: 2px solid #e2e8f0;">
+                        row.innerHTML = `<td colspan="100%" class="schedule-ellipsis schedule-ellipsis-row" style="background: ${getThemeColor('#f0f4f8', '#0f172a')}; padding: 15px; text-align: left; border: 2px solid ${getThemeColor('#e2e8f0', '#1f2937')};">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div>
                                     <strong>▶</strong> Months ${monthData.skippedFrom}-${monthData.skippedTo} hidden (${monthData.skippedTo - monthData.skippedFrom + 1} months) 
-                                    <span style="color: #667eea; margin-left: 10px;">Click anywhere to expand</span>
+                                    <span style="color: ${getThemeColor('#667eea', '#818cf8')}; margin-left: 10px;">Click anywhere to expand</span>
                                 </div>
                                 <div>
                                     <button onclick="event.stopPropagation(); exportSimplifiedToCSV()" style="padding: 5px 10px; font-size: 12px;">📥 Simple Export</button>
@@ -3397,10 +3421,10 @@
                     if (currentMethod === 'utilization' && monthData.phase && monthData.phase !== previousPhase) {
                         const phaseRow = body.insertRow();
                         phaseRow.innerHTML = `
-                            <td colspan="100%" style="background: #2d3748; 
-                                                      color: #e2e8f0; padding: 10px; text-align: center; 
+                            <td colspan="100%" style="background: ${getThemeColor('#e6f2ff', '#1a202c')}; 
+                                                      color: ${getThemeColor('#2563eb', '#60a5fa')}; padding: 10px; text-align: center; 
                                                       font-weight: bold; font-size: 14px; 
-                                                      border-top: 1px solid #1a202c; border-bottom: 1px solid #1a202c;">
+                                                      border-top: 1px solid ${getThemeColor('#cbd5e1', '#374151')}; border-bottom: 1px solid ${getThemeColor('#cbd5e1', '#374151')};">
                                 🎯 ${monthData.phase}${getPhaseThresholdText(monthData.phase)}
                             </td>
                         `;
@@ -3444,10 +3468,10 @@
                     
                     const totalPrincipal = totalPayment - totalInterest;
                     row.innerHTML += `
-                        <td class="total-cell" style="background: #2d3748; color: #e2e8f0; font-weight: bold;">${formatCurrency(totalPayment)}</td>
-                        <td class="total-interest-cell" style="background: #2d3748; color: #fc8181;">${formatCurrency(totalInterest)}</td>
-                        <td class="total-principal-cell" style="background: #2d3748; color: #68d391;">${formatCurrency(totalPrincipal)}</td>
-                        <td class="total-balance-cell" style="background: #2d3748; color: #e2e8f0; font-weight: bold;">${formatCurrency(totalBalance)}</td>
+                        <td class="total-cell" style="background: ${getThemeColor('#f7fafc', '#2d3748')}; color: ${getThemeColor('#2d3748', '#e2e8f0')}; font-weight: bold;">${formatCurrency(totalPayment)}</td>
+                        <td class="total-interest-cell" style="background: ${getThemeColor('#f7fafc', '#2d3748')}; color: ${getThemeColor('#e53e3e', '#fc8181')};">${formatCurrency(totalInterest)}</td>
+                        <td class="total-principal-cell" style="background: ${getThemeColor('#f7fafc', '#2d3748')}; color: ${getThemeColor('#38a169', '#68d391')};">${formatCurrency(totalPrincipal)}</td>
+                        <td class="total-balance-cell" style="background: ${getThemeColor('#f7fafc', '#2d3748')}; color: ${getThemeColor('#2d3748', '#e2e8f0')}; font-weight: bold;">${formatCurrency(totalBalance)}</td>
                     `;
                 });
                 
@@ -3673,7 +3697,7 @@
                     <th>Target Card(s)</th>
                     <th>Utilization Change</th>
                     <th>Payment<br><span style="font-size: 11px; font-weight: normal;">(min + extra = total)</span></th>
-                    <th>Overall Progress</th>
+                    <th>Status</th>
                 `;
                 
                 body.innerHTML = '';
@@ -3709,9 +3733,9 @@
                             // Add phase completion row
                             const completionRow = body.insertRow();
                             completionRow.innerHTML = `
-                                <td colspan="5" style="background: #1a202c; color: #68d391; 
+                                <td colspan="5" style="background: ${getThemeColor('#e6fffa', '#1a202c')}; color: ${getThemeColor('#22543d', '#68d391')}; 
                                          padding: 8px; text-align: center; font-weight: bold; 
-                                         border: 1px solid #22543d;">
+                                         border: 1px solid ${getThemeColor('#38a169', '#22543d')};">
                                     ✅ Complete: ${previousPhase} (${index - phaseStartMonth} months)
                                 </td>
                             `;
@@ -3721,8 +3745,8 @@
                         if (monthData.phase && monthData.phase !== 'Complete') {
                             const phaseRow = body.insertRow();
                             phaseRow.innerHTML = `
-                                <td colspan="5" style="background: #2d3748; 
-                                         color: #e2e8f0; padding: 12px; text-align: center; font-weight: bold;">
+                                <td colspan="5" style="background: ${getThemeColor('#e6f2ff', '#1a202c')}; 
+                                         color: ${getThemeColor('#2563eb', '#60a5fa')}; padding: 12px; text-align: center; font-weight: bold;">
                                     🚀 Begin: ${monthData.phase}${getPhaseThresholdText(monthData.phase)}
                                 </td>
                             `;
@@ -3813,13 +3837,14 @@
                             <td>${cardsHTML}</td>
                             <td>${paymentsHTML}</td>
                             <td>
-                                <span style="color: #a0aec0;">${formatCurrency(totalPayments - totalExtraForMonth)}</span> + 
-                                <span style="color: #667eea; font-weight: bold;">${formatCurrency(totalExtraForMonth)}</span>
+                                <span style="color: ${getThemeColor('#718096', '#a0aec0')};">${formatCurrency(totalPayments - totalExtraForMonth)}</span> + 
+                                <span style="color: ${getThemeColor('#667eea', '#818cf8')}; font-weight: bold;">${formatCurrency(totalExtraForMonth)}</span>
                                 = <strong>${formatCurrency(totalPayments)}</strong>
                             </td>
                             <td style="font-size: 12px;">
-                                Overall: ${overallUtil.toFixed(1)}%<br>
-                                <span style="color: #a0aec0;">Phase: ${monthData.phaseProgress || 0}%</span>
+                                <div>Util: <span style="color: ${overallUtil > 30 ? getThemeColor('#ed8936', '#f59e0b') : getThemeColor('#38a169', '#10b981')};">${overallUtil.toFixed(1)}%</span></div>
+                                <div style="color: ${getThemeColor('#718096', '#a0aec0')};">Phase: ${monthData.phaseProgress || 0}%</div>
+                                <div style="color: ${getThemeColor('#667eea', '#9f7aea')};">Month ${monthData.month}/${schedule.length}</div>
                             </td>
                         `;
                     } else if (monthData.month === 1 || (monthData.month % 12) === 1) {
@@ -3827,11 +3852,14 @@
                         const row = body.insertRow();
                         row.innerHTML = `
                             <td><strong>${monthData.month}</strong></td>
-                            <td colspan="2" style="color: #718096; font-style: italic;">
+                            <td colspan="2" style="color: ${getThemeColor('#718096', '#9ca3af')}; font-style: italic;">
                                 All cards at minimum payments
                             </td>
                             <td>Total: ${formatCurrency(totalPayments)}</td>
-                            <td style="font-size: 12px;">Overall: ${overallUtil.toFixed(1)}%</td>
+                            <td style="font-size: 12px;">
+                                <div>Util: <span style="color: ${overallUtil > 30 ? getThemeColor('#ed8936', '#f59e0b') : getThemeColor('#38a169', '#10b981')};">${overallUtil.toFixed(1)}%</span></div>
+                                <div style="color: ${getThemeColor('#667eea', '#9f7aea')};">Month ${monthData.month}/${schedule.length}</div>
+                            </td>
                         `;
                     }
                 });
@@ -3887,7 +3915,7 @@
             });
             
             if (shouldCollapse && !isExpanded) {
-                html += `<div class="payoff-collapse" style="text-align: center; color: #718096; font-size: 12px; margin-top: 10px; cursor: pointer; padding: 8px; background: #f7fafc; border-radius: 5px;" onclick="togglePayoffDates()">
+                html += `<div class="payoff-collapse" style="text-align: center; color: ${getThemeColor('#718096', '#9ca3af')}; font-size: 12px; margin-top: 10px; cursor: pointer; padding: 8px; background: ${getThemeColor('#f7fafc', '#1f2937')}; border-radius: 5px;" onclick="togglePayoffDates()">
                     ▶ ... and ${sortedDebts.length - 5} more debts ... (click to expand)
                 </div>`;
             } else if (shouldCollapse && isExpanded) {
@@ -3914,15 +3942,15 @@
                 if (totalMonthlyPayment < totalMin || schedule.length === 0) {
                     const summaryDiv = document.getElementById('summary');
                     summaryDiv.innerHTML = `
-                        <div style="background: #fed7d7; padding: 20px; border-radius: 8px; text-align: center;">
-                            <div style="color: #c53030; font-size: 20px; font-weight: bold; margin-bottom: 10px;">
+                        <div style="background: ${getThemeColor('#fed7d7', '#2d1a1a')}; padding: 20px; border-radius: 8px; text-align: center;">
+                            <div style="color: ${getThemeColor('#c53030', '#f87171')}; font-size: 20px; font-weight: bold; margin-bottom: 10px;">
                                 ⚠️ INSUFFICIENT PAYMENT
                             </div>
-                            <div style="color: #742a2a; margin-bottom: 10px;">
+                            <div style="color: ${getThemeColor('#742a2a', '#fca5a5')}; margin-bottom: 10px;">
                                 Your monthly payment of ${formatCurrency(totalMonthlyPayment)} is less than the 
                                 required minimum of ${formatCurrency(totalMin)}
                             </div>
-                            <div style="color: #742a2a; font-weight: bold;">
+                            <div style="color: ${getThemeColor('#742a2a', '#fca5a5')}; font-weight: bold;">
                                 Please increase your Total Monthly Payment to at least ${formatCurrency(totalMin)}
                             </div>
                         </div>
@@ -4061,7 +4089,7 @@
                     const baselineDate = getPayoffDate(baselineMonths);
                     
                     comparisonDiv.innerHTML += `
-                        <div class="comparison-card baseline" style="background: #f1f5f9; border-color: #94a3b8;">
+                        <div class="comparison-card baseline" style="background: ${getThemeColor('#f1f5f9', '#0b1220')}; border-color: ${getThemeColor('#94a3b8', '#1f2937')};">
                             <div class="comparison-title">📊 Baseline (Minimums Only)</div>
                             <div class="comparison-stat">
                                 <span>Time:</span>
