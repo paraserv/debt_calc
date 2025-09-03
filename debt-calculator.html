@@ -2791,6 +2791,23 @@
             updateExtraPayments();
         }
 
+        function getPhaseThresholdText(phase) {
+            if (!phase) return '';
+            
+            if (phase.includes('Emergency Recovery')) {
+                return ' → Target: <89%';
+            } else if (phase.includes('Critical Threshold')) {
+                return ' → Target: <49%';
+            } else if (phase.includes('Good Standing')) {
+                return ' → Target: <29%';
+            } else if (phase.includes('Premium Qualification')) {
+                return ' → Target: <10% overall';
+            } else if (phase.includes('AZEO')) {
+                return ' → Target: 1 card at 1-9%';
+            }
+            return '';
+        }
+        
         function determineWaterfallPhase(activeDebts) {
             const creditCards = activeDebts.filter(d => !d.paidOff && d.creditLimit && d.creditLimit > 0);
             
@@ -3297,7 +3314,7 @@
                             <button onclick="openScheduleInPopup()" style="background: transparent; 
                                     border: none; cursor: pointer; font-size: 20px; padding: 0;"
                                     title="Open in new window">
-                                🔲
+                                ↗️
                             </button>
                         </td>
                         <td colspan="100%" style="text-align: center; padding: 10px; background: #f7fafc;">
@@ -3318,7 +3335,7 @@
                             <button onclick="openScheduleInPopup()" style="background: transparent; 
                                     border: none; cursor: pointer; font-size: 20px; padding: 0;"
                                     title="Open in new window">
-                                🔲
+                                ↗️
                             </button>
                         </td>
                         <td colspan="100%" style="text-align: center; padding: 10px; background: #f7fafc;">
@@ -3382,7 +3399,7 @@
                                                       color: #e2e8f0; padding: 10px; text-align: center; 
                                                       font-weight: bold; font-size: 14px; 
                                                       border-top: 1px solid #2d3748; border-bottom: 1px solid #2d3748;">
-                                🎯 ${monthData.phase}
+                                🎯 ${monthData.phase}${getPhaseThresholdText(monthData.phase)}
                             </td>
                         `;
                         previousPhase = monthData.phase;
@@ -3462,13 +3479,15 @@
             const header = document.getElementById('amortizationHeader').outerHTML;
             const bodyElement = document.getElementById('amortizationBody').cloneNode(true);
             
-            // Remove the first row if it contains control buttons
-            const firstRow = bodyElement.querySelector('tr');
-            if (firstRow && (firstRow.innerHTML.includes('Show Simplified') || 
-                firstRow.innerHTML.includes('Show Detailed') || 
-                firstRow.innerHTML.includes('Pop Out'))) {
-                firstRow.remove();
-            }
+            // Remove control rows (those with buttons or pop-out icons)
+            const rows = bodyElement.querySelectorAll('tr');
+            rows.forEach(row => {
+                if (row.innerHTML.includes('Show Simplified') || 
+                    row.innerHTML.includes('Show Detailed') || 
+                    row.innerHTML.includes('↗️')) {
+                    row.remove();
+                }
+            });
             
             const body = bodyElement.outerHTML;
             const currentMethodName = currentMethod.charAt(0).toUpperCase() + currentMethod.slice(1);
@@ -3668,7 +3687,7 @@
                             phaseRow.innerHTML = `
                                 <td colspan="6" style="background: #4a5568; 
                                          color: #e2e8f0; padding: 12px; text-align: center; font-weight: bold;">
-                                    🎯 ${monthData.phase}
+                                    🎯 ${monthData.phase}${getPhaseThresholdText(monthData.phase)}
                                 </td>
                             `;
                             phaseStartMonth = index;
