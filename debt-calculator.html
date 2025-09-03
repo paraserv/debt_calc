@@ -3303,10 +3303,10 @@
                 const header = document.getElementById('amortizationHeader');
                 const body = document.getElementById('amortizationBody');
                 
-                header.innerHTML = '<th>Month</th><th>Date</th><th>Extra</th>';
+                // Clear the body first
                 body.innerHTML = '';
                 
-                // Add control row with pop-out icon on the left
+                // Add control row with pop-out icon on the left BEFORE setting headers
                 const controlRow = body.insertRow();
                 if (currentMethod === 'utilization') {
                     controlRow.innerHTML = `
@@ -3346,6 +3346,8 @@
                     `;
                 }
                 
+                // Now set the headers AFTER the control row
+                header.innerHTML = '<th>Month</th><th>Date</th><th>Extra</th>';
                 debts.forEach(debt => {
                     const escapedName = escapeHtml(debt.name);
                     header.innerHTML += `<th colspan="3">${escapedName}</th>`;
@@ -3649,7 +3651,7 @@
                         <button onclick="openScheduleInPopup()" style="background: transparent; 
                                 border: none; cursor: pointer; font-size: 20px; padding: 0;"
                                 title="Open in new window">
-                            🔲
+                            <span style="display: inline-block; width: 24px; height: 24px; background: #667eea; color: white; border-radius: 4px; font-size: 14px; line-height: 24px; text-align: center; font-weight: bold;">↗</span>
                         </button>
                     </td>
                     <td colspan="5" style="text-align: center; padding: 10px; background: #f7fafc;">
