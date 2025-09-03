@@ -3295,10 +3295,15 @@
                     toggleRow.innerHTML = `
                         <td colspan="100%" style="text-align: center; padding: 10px; background: #f7fafc;">
                             <button onclick="updateSimplifiedWaterfallView()" style="padding: 8px 16px; 
-                                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                                    background: #4c51bf; 
                                     color: white; border: none; 
                                     border-radius: 5px; cursor: pointer; font-weight: bold;">
                                 📈 Show Simplified Waterfall View
+                            </button>
+                            <button onclick="openScheduleInPopup()" style="padding: 8px 16px; 
+                                    background: #2d3748; color: #e2e8f0; border: 1px solid #4a5568; 
+                                    border-radius: 5px; cursor: pointer; margin-left: 10px;">
+                                🔲 Pop Out Schedule
                             </button>
                             <span style="margin: 0 10px; color: #718096;">
                                 Focus on utilization changes and phase progression
@@ -3356,9 +3361,10 @@
                     if (currentMethod === 'utilization' && monthData.phase && monthData.phase !== previousPhase) {
                         const phaseRow = body.insertRow();
                         phaseRow.innerHTML = `
-                            <td colspan="100%" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                                                      color: white; padding: 10px; text-align: center; 
-                                                      font-weight: bold; font-size: 14px;">
+                            <td colspan="100%" style="background: #4a5568; 
+                                                      color: #e2e8f0; padding: 10px; text-align: center; 
+                                                      font-weight: bold; font-size: 14px; 
+                                                      border-top: 1px solid #2d3748; border-bottom: 1px solid #2d3748;">
                                 🎯 ${monthData.phase}
                             </td>
                         `;
@@ -3425,6 +3431,148 @@
             }
         }
 
+        function openScheduleInPopup() {
+            // Create a new window with the schedule
+            const popupWindow = window.open('', 'PayoffSchedule', 
+                'width=1200,height=800,resizable=yes,scrollbars=yes,menubar=no,toolbar=no,location=no,status=no');
+            
+            if (!popupWindow) {
+                alert('Please allow popups for this site to open the schedule in a new window.');
+                return;
+            }
+            
+            // Get current schedule HTML
+            const header = document.getElementById('amortizationHeader').outerHTML;
+            const body = document.getElementById('amortizationBody').outerHTML;
+            const currentMethodName = currentMethod.charAt(0).toUpperCase() + currentMethod.slice(1);
+            
+            // Build the popup HTML
+            const popupHTML = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Debt Payoff Schedule - ${currentMethodName} Method</title>
+                    <style>
+                        body {
+                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                            margin: 20px;
+                            background: #1a202c;
+                            color: #e2e8f0;
+                        }
+                        h1 {
+                            color: #e2e8f0;
+                            border-bottom: 2px solid #4a5568;
+                            padding-bottom: 10px;
+                        }
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin-top: 20px;
+                        }
+                        th, td {
+                            border: 1px solid #4a5568;
+                            padding: 8px;
+                            text-align: left;
+                        }
+                        th {
+                            background: #2d3748;
+                            color: #e2e8f0;
+                            font-weight: bold;
+                        }
+                        tr:nth-child(even) {
+                            background: #2d3748;
+                        }
+                        tr:hover {
+                            background: #374151;
+                        }
+                        .paid-off {
+                            color: #68d391;
+                            font-weight: bold;
+                        }
+                        .current-focus {
+                            background: #4c51bf !important;
+                            color: white;
+                        }
+                        .extra-in-payment {
+                            color: #9f7aea;
+                            font-size: 11px;
+                        }
+                        .total-cell {
+                            font-weight: bold;
+                            background: #2d3748 !important;
+                        }
+                        .total-interest-cell {
+                            color: #fc8181;
+                            background: #2d3748 !important;
+                        }
+                        .total-principal-cell {
+                            color: #68d391;
+                            background: #2d3748 !important;
+                        }
+                        .controls {
+                            position: sticky;
+                            top: 0;
+                            background: #1a202c;
+                            padding: 10px 0;
+                            z-index: 100;
+                            border-bottom: 2px solid #4a5568;
+                            margin-bottom: 20px;
+                        }
+                        button {
+                            padding: 8px 16px;
+                            margin-right: 10px;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            border: none;
+                            background: #4c51bf;
+                            color: white;
+                        }
+                        button:hover {
+                            background: #5a67d8;
+                        }
+                        @media print {
+                            .controls {
+                                display: none;
+                            }
+                            body {
+                                background: white;
+                                color: black;
+                            }
+                            th {
+                                background: #f7fafc !important;
+                                color: black !important;
+                            }
+                            tr:nth-child(even) {
+                                background: #f7fafc !important;
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="controls">
+                        <button onclick="window.print()">🖨️ Print Schedule</button>
+                        <button onclick="window.close()">❌ Close Window</button>
+                        <span style="float: right; color: #a0aec0;">
+                            ${currentMethodName} Method Payoff Schedule
+                        </span>
+                    </div>
+                    <h1>Debt Payoff Schedule - ${currentMethodName} Method</h1>
+                    <table>
+                        <thead>
+                            ${header}
+                        </thead>
+                        <tbody>
+                            ${body}
+                        </tbody>
+                    </table>
+                </body>
+                </html>
+            `;
+            
+            popupWindow.document.write(popupHTML);
+            popupWindow.document.close();
+        }
+        
         function updateSimplifiedWaterfallView() {
             try {
                 const schedule = calculatePayoffSchedule();
@@ -3453,9 +3601,14 @@
                 toggleRow.innerHTML = `
                     <td colspan="6" style="text-align: center; padding: 10px; background: #f7fafc;">
                         <button onclick="updateAmortizationTable()" style="padding: 8px 16px; 
-                                background: #667eea; color: white; border: none; 
+                                background: #4c51bf; color: white; border: none; 
                                 border-radius: 5px; cursor: pointer;">
                             📊 Show Detailed View
+                        </button>
+                        <button onclick="openScheduleInPopup()" style="padding: 8px 16px; 
+                                background: #2d3748; color: #e2e8f0; border: 1px solid #4a5568; 
+                                border-radius: 5px; cursor: pointer; margin-left: 10px;">
+                            🔲 Pop Out Schedule
                         </button>
                         <span style="margin: 0 10px; color: #718096;">
                             Simplified view shows only cards being actively paid down
@@ -3473,7 +3626,7 @@
                             // Add phase completion row
                             const completionRow = body.insertRow();
                             completionRow.innerHTML = `
-                                <td colspan="6" style="background: #c6f6d5; color: #22543d; 
+                                <td colspan="6" style="background: #2f855a; color: #f0fff4; 
                                          padding: 8px; text-align: center; font-weight: bold;">
                                     ✅ ${previousPhase} Complete (${index - phaseStartMonth} months)
                                 </td>
@@ -3484,8 +3637,8 @@
                         if (monthData.phase && monthData.phase !== 'Complete') {
                             const phaseRow = body.insertRow();
                             phaseRow.innerHTML = `
-                                <td colspan="6" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                                         color: white; padding: 12px; text-align: center; font-weight: bold;">
+                                <td colspan="6" style="background: #4a5568; 
+                                         color: #e2e8f0; padding: 12px; text-align: center; font-weight: bold;">
                                     🎯 ${monthData.phase}
                                 </td>
                             `;
