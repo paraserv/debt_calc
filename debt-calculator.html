@@ -3444,10 +3444,10 @@
                     
                     const totalPrincipal = totalPayment - totalInterest;
                     row.innerHTML += `
-                        <td class="total-cell" style="background: #f7fafc; font-weight: bold;">${formatCurrency(totalPayment)}</td>
-                        <td class="total-interest-cell" style="background: #f7fafc; color: #e53e3e;">${formatCurrency(totalInterest)}</td>
-                        <td class="total-principal-cell" style="background: #f7fafc; color: #38a169;">${formatCurrency(totalPrincipal)}</td>
-                        <td class="total-balance-cell" style="background: #f7fafc; font-weight: bold;">${formatCurrency(totalBalance)}</td>
+                        <td class="total-cell" style="background: #2d3748; color: #e2e8f0; font-weight: bold;">${formatCurrency(totalPayment)}</td>
+                        <td class="total-interest-cell" style="background: #2d3748; color: #fc8181;">${formatCurrency(totalInterest)}</td>
+                        <td class="total-principal-cell" style="background: #2d3748; color: #68d391;">${formatCurrency(totalPrincipal)}</td>
+                        <td class="total-balance-cell" style="background: #2d3748; color: #e2e8f0; font-weight: bold;">${formatCurrency(totalBalance)}</td>
                     `;
                 });
                 
@@ -3472,7 +3472,7 @@
 
         function openScheduleInPopup() {
             // Create a new window with the schedule
-            const popupWindow = window.open('', 'PayoffSchedule', 
+            const popupWindow = window.open('about:blank', 'PayoffSchedule', 
                 'width=1200,height=800,resizable=yes,scrollbars=yes,menubar=no,toolbar=no,location=no,status=no');
             
             if (!popupWindow) {
@@ -3551,6 +3551,7 @@
                         .total-cell {
                             font-weight: bold;
                             background: #2d3748 !important;
+                            color: #e2e8f0 !important;
                         }
                         .total-interest-cell {
                             color: #fc8181;
@@ -3559,6 +3560,20 @@
                         .total-principal-cell {
                             color: #68d391;
                             background: #2d3748 !important;
+                        }
+                        .total-balance-cell {
+                            font-weight: bold;
+                            background: #2d3748 !important;
+                            color: #e2e8f0 !important;
+                        }
+                        /* Fix all td elements to have proper text color */
+                        td {
+                            color: #e2e8f0;
+                            background: #1a202c;
+                        }
+                        /* Ensure balance columns are readable */
+                        td:nth-child(3n) { /* Every 3rd column (balance columns) */
+                            color: #e2e8f0 !important;
                         }
                         .controls {
                             position: sticky;
@@ -3633,8 +3648,12 @@
                 </html>
             `;
             
+            // Set the document content
             popupWindow.document.write(popupHTML);
             popupWindow.document.close();
+            
+            // Update the title and URL bar
+            popupWindow.document.title = `Debt Payoff Schedule - ${currentMethodName} Method`;
         }
         
         function updateSimplifiedWaterfallView() {
@@ -3653,7 +3672,7 @@
                     <th>Month</th>
                     <th>Target Card(s)</th>
                     <th>Utilization Change</th>
-                    <th>Payment</th>
+                    <th>Payment<br><span style="font-size: 11px; font-weight: normal;">(min + extra = total)</span></th>
                     <th>Overall Progress</th>
                 `;
                 
