@@ -3359,7 +3359,7 @@
                 debts.forEach(() => {
                     subHeaderRow.innerHTML += '<td class="totals-subheader-cell"><strong>Payment</strong></td><td class="totals-subheader-cell"><strong>Interest</strong></td><td class="totals-subheader-cell"><strong>Balance</strong></td>';
                 });
-                subHeaderRow.innerHTML += '<td class="totals-subheader-cell" style="background: #f7fafc;"><strong>Payment</strong></td><td class="totals-subheader-cell" style="background: #f7fafc;"><strong>Interest</strong></td><td class="totals-subheader-cell" style="background: #f7fafc;"><strong>Principal</strong></td><td class="totals-subheader-cell" style="background: #f7fafc;"><strong>Balance</strong></td>';
+                subHeaderRow.innerHTML += '<td class="totals-subheader-cell" style="background: #2d3748; color: #e2e8f0;"><strong>Payment</strong></td><td class="totals-subheader-cell" style="background: #2d3748; color: #e2e8f0;"><strong>Interest</strong></td><td class="totals-subheader-cell" style="background: #2d3748; color: #e2e8f0;"><strong>Principal</strong></td><td class="totals-subheader-cell" style="background: #2d3748; color: #e2e8f0;"><strong>Balance</strong></td>';
                 
                 let rowsToShow = [];
                 if (showFull || schedule.length <= 24) {
@@ -3397,10 +3397,10 @@
                     if (currentMethod === 'utilization' && monthData.phase && monthData.phase !== previousPhase) {
                         const phaseRow = body.insertRow();
                         phaseRow.innerHTML = `
-                            <td colspan="100%" style="background: #4a5568; 
+                            <td colspan="100%" style="background: #2d3748; 
                                                       color: #e2e8f0; padding: 10px; text-align: center; 
                                                       font-weight: bold; font-size: 14px; 
-                                                      border-top: 1px solid #2d3748; border-bottom: 1px solid #2d3748;">
+                                                      border-top: 1px solid #1a202c; border-bottom: 1px solid #1a202c;">
                                 🎯 ${monthData.phase}${getPhaseThresholdText(monthData.phase)}
                             </td>
                         `;
@@ -3578,6 +3578,19 @@
                         button:hover {
                             background: #5a67d8;
                         }
+                        .totals-subheader-cell {
+                            background: #2d3748 !important;
+                            color: #e2e8f0 !important;
+                        }
+                        /* Fix phase headers in popup */
+                        td[style*="background: #4a5568"] {
+                            background: #2d3748 !important;
+                        }
+                        td[style*="background: #22543d"],
+                        td[style*="background: #2f855a"] {
+                            background: #1a202c !important;
+                            border: 1px solid #22543d !important;
+                        }
                         @media print {
                             .controls {
                                 display: none;
@@ -3675,8 +3688,9 @@
                             // Add phase completion row
                             const completionRow = body.insertRow();
                             completionRow.innerHTML = `
-                                <td colspan="6" style="background: #2f855a; color: #f0fff4; 
-                                         padding: 8px; text-align: center; font-weight: bold;">
+                                <td colspan="6" style="background: #1a202c; color: #68d391; 
+                                         padding: 8px; text-align: center; font-weight: bold; 
+                                         border: 1px solid #22543d;">
                                     ✅ ${previousPhase} Complete (${index - phaseStartMonth} months)
                                 </td>
                             `;
@@ -3686,7 +3700,7 @@
                         if (monthData.phase && monthData.phase !== 'Complete') {
                             const phaseRow = body.insertRow();
                             phaseRow.innerHTML = `
-                                <td colspan="6" style="background: #4a5568; 
+                                <td colspan="6" style="background: #2d3748; 
                                          color: #e2e8f0; padding: 12px; text-align: center; font-weight: bold;">
                                     🎯 ${monthData.phase}${getPhaseThresholdText(monthData.phase)}
                                 </td>
