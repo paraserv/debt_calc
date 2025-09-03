@@ -1121,6 +1121,9 @@
         </div>
 
         <h2>📅 Payoff Schedule</h2>
+        <div id="scheduleControls" style="display: none; padding: 10px; background: #2d3748; border-radius: 8px 8px 0 0; margin-bottom: 0;">
+            <!-- Control row will be inserted here -->
+        </div>
         <div class="scroll-container">
             <table id="amortizationTable">
                 <thead>
@@ -3302,47 +3305,44 @@
                 
                 const header = document.getElementById('amortizationHeader');
                 const body = document.getElementById('amortizationBody');
+                const controlsDiv = document.getElementById('scheduleControls');
                 
                 // Clear the body first
                 body.innerHTML = '';
                 
-                // Add control row with pop-out icon on the left BEFORE setting headers
-                const controlRow = body.insertRow();
+                // Set up control row above the table
+                controlsDiv.style.display = 'block';
                 if (currentMethod === 'utilization') {
-                    controlRow.innerHTML = `
-                        <td style="text-align: center; padding: 5px; background: #f7fafc; width: 40px;">
+                    controlsDiv.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 10px;">
                             <button onclick="openScheduleInPopup()" style="background: transparent; 
-                                    border: none; cursor: pointer; font-size: 20px; padding: 0;"
+                                    border: none; cursor: pointer; padding: 0;"
                                     title="Open in new window">
-                                <span style="display: inline-block; width: 24px; height: 24px; background: #667eea; color: white; border-radius: 4px; font-size: 14px; line-height: 24px; text-align: center; font-weight: bold;">↗</span>
+                                <span style="display: inline-block; width: 24px; height: 24px; background: #4c51bf; color: white; border-radius: 4px; font-size: 14px; line-height: 24px; text-align: center; font-weight: bold;">↗</span>
                             </button>
-                        </td>
-                        <td colspan="100%" style="text-align: center; padding: 10px; background: #f7fafc;">
                             <button onclick="updateSimplifiedWaterfallView()" style="padding: 8px 16px; 
                                     background: #4c51bf; 
                                     color: white; border: none; 
                                     border-radius: 5px; cursor: pointer; font-weight: bold;">
                                 📈 Show Simplified Waterfall View
                             </button>
-                            <span style="margin: 0 10px; color: #718096;">
+                            <span style="color: #a0aec0; font-size: 14px;">
                                 Focus on utilization changes and phase progression
                             </span>
-                        </td>
+                        </div>
                     `;
                 } else {
-                    controlRow.innerHTML = `
-                        <td style="text-align: center; padding: 5px; background: #f7fafc; width: 40px;">
+                    controlsDiv.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 10px;">
                             <button onclick="openScheduleInPopup()" style="background: transparent; 
-                                    border: none; cursor: pointer; font-size: 20px; padding: 0;"
+                                    border: none; cursor: pointer; padding: 0;"
                                     title="Open in new window">
-                                <span style="display: inline-block; width: 24px; height: 24px; background: #667eea; color: white; border-radius: 4px; font-size: 14px; line-height: 24px; text-align: center; font-weight: bold;">↗</span>
+                                <span style="display: inline-block; width: 24px; height: 24px; background: #4c51bf; color: white; border-radius: 4px; font-size: 14px; line-height: 24px; text-align: center; font-weight: bold;">↗</span>
                             </button>
-                        </td>
-                        <td colspan="100%" style="text-align: center; padding: 10px; background: #f7fafc;">
-                            <span style="color: #718096; font-size: 14px;">
+                            <span style="color: #a0aec0; font-size: 14px;">
                                 ${currentMethod.charAt(0).toUpperCase() + currentMethod.slice(1)} Method Payoff Schedule
                             </span>
-                        </td>
+                        </div>
                     `;
                 }
                 
@@ -3486,7 +3486,7 @@
             rows.forEach(row => {
                 if (row.innerHTML.includes('Show Simplified') || 
                     row.innerHTML.includes('Show Detailed') || 
-                    row.innerHTML.includes('width: 24px; height: 24px; background: #667eea')) {
+                    row.innerHTML.includes('width: 24px; height: 24px; background:')) {
                     row.remove();
                 }
             });
@@ -3644,26 +3644,25 @@
                 
                 body.innerHTML = '';
                 
-                // Add view toggle button row with pop-out icon on the left
-                const toggleRow = body.insertRow();
-                toggleRow.innerHTML = `
-                    <td style="text-align: center; padding: 5px; background: #f7fafc; width: 40px;">
+                // Set up control row above the table
+                const controlsDiv = document.getElementById('scheduleControls');
+                controlsDiv.style.display = 'block';
+                controlsDiv.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px;">
                         <button onclick="openScheduleInPopup()" style="background: transparent; 
-                                border: none; cursor: pointer; font-size: 20px; padding: 0;"
+                                border: none; cursor: pointer; padding: 0;"
                                 title="Open in new window">
-                            <span style="display: inline-block; width: 24px; height: 24px; background: #667eea; color: white; border-radius: 4px; font-size: 14px; line-height: 24px; text-align: center; font-weight: bold;">↗</span>
+                            <span style="display: inline-block; width: 24px; height: 24px; background: #4c51bf; color: white; border-radius: 4px; font-size: 14px; line-height: 24px; text-align: center; font-weight: bold;">↗</span>
                         </button>
-                    </td>
-                    <td colspan="5" style="text-align: center; padding: 10px; background: #f7fafc;">
                         <button onclick="updateAmortizationTable()" style="padding: 8px 16px; 
                                 background: #4c51bf; color: white; border: none; 
                                 border-radius: 5px; cursor: pointer;">
                             📊 Show Detailed View
                         </button>
-                        <span style="margin: 0 10px; color: #718096;">
+                        <span style="color: #a0aec0; font-size: 14px;">
                             Simplified view shows only cards being actively paid down
                         </span>
-                    </td>
+                    </div>
                 `;
                 
                 let previousPhase = null;
