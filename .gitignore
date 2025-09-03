@@ -3,6 +3,8 @@
 *.tmp
 *.log
 
+personal_recommendations.md
+
 # OS/editor noise
 .DS_Store
 Thumbs.db

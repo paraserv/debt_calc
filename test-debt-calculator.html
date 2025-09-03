@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debt Calculator Test Suite</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .test-suite {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #555;
+            margin-top: 30px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+        .test-case {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-left: 4px solid #2196F3;
+            border-radius: 4px;
+        }
+        .test-pass {
+            border-left-color: #4CAF50;
+            background: #f1f8f4;
+        }
+        .test-fail {
+            border-left-color: #f44336;
+            background: #fef1f0;
+        }
+        .test-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .test-details {
+            color: #666;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        .expected {
+            color: #4CAF50;
+        }
+        .actual {
+            color: #2196F3;
+        }
+        .error {
+            color: #f44336;
+        }
+        .summary {
+            margin: 20px 0;
+            padding: 15px;
+            background: #e3f2fd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .summary.all-pass {
+            background: #e8f5e9;
+        }
+        .summary.has-fail {
+            background: #ffebee;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background: #f2f2f2;
+        }
+        .calculation-step {
+            margin: 5px 0;
+            padding: 5px;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-suite">
+        <h1>🧪 Debt Calculator Test Suite</h1>
+        <button onclick="runAllTests()">Run All Tests</button>
+        <button onclick="clearResults()">Clear Results</button>
+        
+        <div id="summary" class="summary"></div>
+        <div id="test-results"></div>
+    </div>
+
+    <script>
+        // Test data and utilities
+        const EPSILON = 0.01; // For floating point comparison
+        
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD'
+            }).format(amount);
+        }
+        
+        function assertEqual(actual, expected, message) {
+            if (Math.abs(actual - expected) > EPSILON) {
+                throw new Error(`${message}\nExpected: ${expected}\nActual: ${actual}\nDifference: ${actual - expected}`);
+            }
+        }
+        
+        function assertClose(actual, expected, tolerance, message) {
+            if (Math.abs(actual - expected) > tolerance) {
+                throw new Error(`${message}\nExpected: ${expected} ±${tolerance}\nActual: ${actual}\nDifference: ${actual - expected}`);
+            }
+        }
+        
+        // Core calculation functions from debt-calculator.html
+        function calculateMonthlyInterest(balance, annualRate) {
+            return balance * (annualRate / 100 / 12);
+        }
+        
+        function calculateMinimumPayment(balance, annualRate, type = 'credit') {
+            if (type === 'credit') {
+                // Credit card: max of 2% of balance or $25
+                return Math.min(balance, Math.max(balance * 0.02, 25));
+            } else {
+                // Loan: approximate fixed payment for 10-year term
+                const monthlyRate = annualRate / 100 / 12;
+                const months = 120; // 10 years
+                if (monthlyRate === 0) return balance / months;
+                return balance * (monthlyRate * Math.pow(1 + monthlyRate, months)) / 
+                       (Math.pow(1 + monthlyRate, months) - 1);
+            }
+        }
+        
+        function calculateUtilization(balance, creditLimit) {
+            if (!creditLimit || creditLimit <= 0) return 0;
+            return (balance / creditLimit) * 100;
+        }
+        
+        function determineWaterfallPhase(debts) {
+            const creditCards = debts.filter(d => d.creditLimit && d.creditLimit > 0);
+            if (creditCards.length === 0) return { phase: 'No Credit Cards', threshold: 0 };
+            
+            // Check Phase 1: Emergency Recovery (89% threshold)
+            const over89 = creditCards.filter(d => calculateUtilization(d.balance, d.creditLimit) > 89);
+            if (over89.length > 0) {
+                return { 
+                    phase: 'Phase 1: Emergency Recovery',
+                    threshold: 89,
+                    targetCards: over89.length,
+                    progress: ((creditCards.length - over89.length) / creditCards.length) * 100
+                };
+            }
+            
+            // Check Phase 2: Critical Threshold (49%)
+            const over49 = creditCards.filter(d => calculateUtilization(d.balance, d.creditLimit) > 49);
+            if (over49.length > 0) {
+                return { 
+                    phase: 'Phase 2: Critical Threshold',
+                    threshold: 49,
+                    targetCards: over49.length,
+                    progress: ((creditCards.length - over49.length) / creditCards.length) * 100
+                };
+            }
+            
+            // Check Phase 3: Good Standing (29%)
+            const over29 = creditCards.filter(d => calculateUtilization(d.balance, d.creditLimit) > 29);
+            if (over29.length > 0) {
+                return { 
+                    phase: 'Phase 3: Good Standing',
+                    threshold: 29,
+                    targetCards: over29.length,
+                    progress: ((creditCards.length - over29.length) / creditCards.length) * 100
+                };
+            }
+            
+            // Check Phase 4: Premium Qualification (10% overall)
+            const totalBalance = creditCards.reduce((sum, d) => sum + d.balance, 0);
+            const totalLimit = creditCards.reduce((sum, d) => sum + d.creditLimit, 0);
+            const overallUtil = (totalBalance / totalLimit) * 100;
+            
+            if (overallUtil > 10) {
+                return { 
+                    phase: 'Phase 4: Premium Qualification',
+                    threshold: 10,
+                    isOverall: true,
+                    currentUtilization: overallUtil,
+                    progress: Math.max(0, 100 - ((overallUtil - 10) * 10))
+                };
+            }
+            
+            // Phase 5: AZEO Optimization
+            const nonZeroCards = creditCards.filter(d => d.balance > 0);
+            if (nonZeroCards.length > 1) {
+                return { 
+                    phase: 'Phase 5: AZEO Optimization',
+                    isAZEO: true,
+                    cardsToPayOff: nonZeroCards.length - 1,
+                    progress: ((creditCards.length - nonZeroCards.length) / (creditCards.length - 1)) * 100
+                };
+            }
+            
+            return { phase: 'Complete', progress: 100 };
+        }
+        
+        function allocateWaterfallPayment(debts, availableExtra) {
+            const phase = determineWaterfallPhase(debts);
+            const allocations = {};
+            
+            debts.forEach(debt => {
+                allocations[debt.name] = 0;
+            });
+            
+            if (availableExtra <= 0) return allocations;
+            
+            if (phase.isAZEO) {
+                // AZEO: Pay all but smallest balance to zero
+                const creditCards = debts.filter(d => d.creditLimit > 0 && d.balance > 0);
+                creditCards.sort((a, b) => a.balance - b.balance); // Sort ascending to find smallest
+                
+                // Pay off all except the smallest balance card
+                for (let i = 1; i < creditCards.length; i++) {
+                    if (availableExtra <= 0) break;
+                    const card = creditCards[i];
+                    const payment = Math.min(card.balance, availableExtra);
+                    allocations[card.name] = payment;
+                    availableExtra -= payment;
+                }
+            } else if (phase.isOverall) {
+                // Phase 4: Reduce overall utilization
+                const creditCards = debts.filter(d => d.creditLimit > 0 && d.balance > 0);
+                creditCards.sort((a, b) => b.balance - a.balance);
+                
+                for (let card of creditCards) {
+                    if (availableExtra <= 0) break;
+                    const payment = Math.min(card.balance, availableExtra);
+                    allocations[card.name] = payment;
+                    availableExtra -= payment;
+                }
+            } else if (phase.threshold) {
+                // Phases 1-3: Pay down to threshold
+                const creditCards = debts.filter(d => d.creditLimit > 0);
+                const targetUtil = phase.threshold / 100;
+                
+                // Sort by utilization (highest first)
+                creditCards.sort((a, b) => {
+                    const utilA = calculateUtilization(a.balance, a.creditLimit);
+                    const utilB = calculateUtilization(b.balance, b.creditLimit);
+                    return utilB - utilA;
+                });
+                
+                for (let card of creditCards) {
+                    if (availableExtra <= 0) break;
+                    const currentUtil = calculateUtilization(card.balance, card.creditLimit);
+                    if (currentUtil <= phase.threshold) continue;
+                    
+                    const targetBalance = card.creditLimit * targetUtil;
+                    const paymentNeeded = card.balance - targetBalance;
+                    const payment = Math.min(paymentNeeded, availableExtra);
+                    
+                    allocations[card.name] = payment;
+                    availableExtra -= payment;
+                }
+                
+                // Important: Only use remaining funds for avalanche if we're done with waterfall
+                // In phases 1-3, extra funds should go to next debt by rate after threshold is met
+                if (availableExtra > 0) {
+                    const belowThresholdDebts = debts.filter(d => {
+                        // Calculate utilization AFTER the allocation that's already been made
+                        const newBalance = d.balance - allocations[d.name];
+                        const util = calculateUtilization(newBalance, d.creditLimit);
+                        return newBalance > 0 && (util <= phase.threshold || !d.creditLimit);
+                    });
+                    belowThresholdDebts.sort((a, b) => b.rate - a.rate);
+                    
+                    for (let debt of belowThresholdDebts) {
+                        if (availableExtra <= 0) break;
+                        const remainingBalance = debt.balance - allocations[debt.name];
+                        const payment = Math.min(remainingBalance, availableExtra);
+                        allocations[debt.name] += payment;
+                        availableExtra -= payment;
+                    }
+                }
+            } else {
+                // No specific phase, use avalanche
+                const remainingDebts = debts.filter(d => d.balance > 0);
+                remainingDebts.sort((a, b) => b.rate - a.rate);
+                
+                for (let debt of remainingDebts) {
+                    if (availableExtra <= 0) break;
+                    const payment = Math.min(debt.balance, availableExtra);
+                    allocations[debt.name] = payment;
+                    availableExtra -= payment;
+                }
+            }
+            
+            return allocations;
+        }
+        
+        // Test Cases
+        const testCases = [
+            {
+                name: "Basic Interest Calculation",
+                category: "Interest",
+                run: () => {
+                    const balance = 1000;
+                    const rate = 18; // 18% APR
+                    const monthlyInterest = calculateMonthlyInterest(balance, rate);
+                    const expected = 15; // 1000 * 0.18 / 12
+                    assertEqual(monthlyInterest, expected, "Monthly interest calculation");
+                    
+                    return {
+                        details: `Balance: ${formatCurrency(balance)}, APR: ${rate}%`,
+                        expected: formatCurrency(expected),
+                        actual: formatCurrency(monthlyInterest)
+                    };
+                }
+            },
+            {
+                name: "Credit Card Minimum Payment",
+                category: "Payments",
+                run: () => {
+                    const tests = [
+                        { balance: 1000, expected: 25 }, // 2% = $20, but min $25
+                        { balance: 2000, expected: 40 }, // 2% = $40
+                        { balance: 100, expected: 25 },  // 2% = $2, but min $25
+                        { balance: 20, expected: 20 },   // Can't pay more than balance
+                    ];
+                    
+                    let details = [];
+                    for (let test of tests) {
+                        const actual = calculateMinimumPayment(test.balance, 18, 'credit');
+                        assertEqual(actual, test.expected, 
+                            `Min payment for balance ${test.balance}`);
+                        details.push(`Balance: ${formatCurrency(test.balance)} → Min: ${formatCurrency(actual)}`);
+                    }
+                    
+                    return { details: details.join('\n') };
+                }
+            },
+            {
+                name: "Utilization Calculation",
+                category: "Utilization",
+                run: () => {
+                    const tests = [
+                        { balance: 950, limit: 1000, expected: 95 },
+                        { balance: 500, limit: 1000, expected: 50 },
+                        { balance: 0, limit: 1000, expected: 0 },
+                        { balance: 1000, limit: 1000, expected: 100 },
+                    ];
+                    
+                    let details = [];
+                    for (let test of tests) {
+                        const actual = calculateUtilization(test.balance, test.limit);
+                        assertEqual(actual, test.expected, 
+                            `Utilization for ${test.balance}/${test.limit}`);
+                        details.push(`${formatCurrency(test.balance)}/${formatCurrency(test.limit)} = ${actual}%`);
+                    }
+                    
+                    return { details: details.join('\n') };
+                }
+            },
+            {
+                name: "Phase 1 Detection (89% Threshold)",
+                category: "Waterfall",
+                run: () => {
+                    const debts = [
+                        { name: "Card A", balance: 950, creditLimit: 1000, rate: 18 }, // 95%
+                        { name: "Card B", balance: 450, creditLimit: 500, rate: 20 },  // 90%
+                        { name: "Card C", balance: 400, creditLimit: 500, rate: 15 },  // 80%
+                    ];
+                    
+                    const phase = determineWaterfallPhase(debts);
+                    
+                    if (phase.phase !== 'Phase 1: Emergency Recovery') {
+                        throw new Error(`Expected Phase 1, got ${phase.phase}`);
+                    }
+                    if (phase.threshold !== 89) {
+                        throw new Error(`Expected threshold 89, got ${phase.threshold}`);
+                    }
+                    if (phase.targetCards !== 2) {
+                        throw new Error(`Expected 2 cards over 89%, got ${phase.targetCards}`);
+                    }
+                    
+                    const progressPercent = phase.progress ? phase.progress.toFixed(1) : '0.0';
+                    return {
+                        details: `Phase: ${phase.phase}\nCards over 89%: ${phase.targetCards}\nProgress: ${progressPercent}%`
+                    };
+                }
+            },
+            {
+                name: "Phase 2 Detection (49% Threshold)",
+                category: "Waterfall",
+                run: () => {
+                    const debts = [
+                        { name: "Card A", balance: 400, creditLimit: 500, rate: 18 },  // 80%
+                        { name: "Card B", balance: 300, creditLimit: 500, rate: 20 },  // 60%
+                        { name: "Card C", balance: 100, creditLimit: 500, rate: 15 },  // 20%
+                    ];
+                    
+                    const phase = determineWaterfallPhase(debts);
+                    
+                    if (phase.phase !== 'Phase 2: Critical Threshold') {
+                        throw new Error(`Expected Phase 2, got ${phase.phase}`);
+                    }
+                    if (phase.threshold !== 49) {
+                        throw new Error(`Expected threshold 49, got ${phase.threshold}`);
+                    }
+                    
+                    return {
+                        details: `Phase: ${phase.phase}\nCards over 49%: ${phase.targetCards}`
+                    };
+                }
+            },
+            {
+                name: "Waterfall Payment Allocation - Phase 1",
+                category: "Waterfall",
+                run: () => {
+                    const debts = [
+                        { name: "Card A", balance: 950, creditLimit: 1000, rate: 18 }, // 95% → target 89%
+                        { name: "Card B", balance: 900, creditLimit: 1000, rate: 20 }, // 90% → target 89%
+                        { name: "Card C", balance: 400, creditLimit: 500, rate: 15 },  // 80% (already below)
+                    ];
+                    
+                    const availableExtra = 100;
+                    const allocations = allocateWaterfallPayment(debts, availableExtra);
+                    
+                    // Card A needs to go from 95% to 89% = 950 → 890 = $60
+                    // Card B needs to go from 90% to 89% = 900 → 890 = $10
+                    // Total needed: $70, we have $100
+                    // Remaining $30 goes to highest rate below threshold
+                    // Card B is at 20% rate, Card C is at 15% rate
+                    // So Card B gets the extra $30
+                    
+                    const expectedA = 60;
+                    const expectedB = 40; // $10 for threshold + $30 extra
+                    const expectedC = 0;
+                    
+                    assertClose(allocations["Card A"], expectedA, 1, "Card A allocation");
+                    assertClose(allocations["Card B"], expectedB, 1, "Card B allocation");
+                    assertClose(allocations["Card C"], expectedC, 1, "Card C gets nothing");
+                    
+                    const totalAllocated = Object.values(allocations).reduce((sum, val) => sum + val, 0);
+                    assertEqual(totalAllocated, 100, "All available funds should be allocated");
+                    
+                    return {
+                        details: `Available: ${formatCurrency(availableExtra)}\n` +
+                                `Card A (95%→89%): ${formatCurrency(allocations["Card A"])}\n` +
+                                `Card B (90%→89%): ${formatCurrency(allocations["Card B"])}\n` +
+                                `Card C (80%, no payment): ${formatCurrency(allocations["Card C"])}\n` +
+                                `Total Allocated: ${formatCurrency(totalAllocated)}`
+                    };
+                }
+            },
+            {
+                name: "Waterfall Payment Allocation - Insufficient Funds",
+                category: "Waterfall",
+                run: () => {
+                    const debts = [
+                        { name: "Card A", balance: 950, creditLimit: 1000, rate: 18 }, // 95% → needs $60
+                        { name: "Card B", balance: 900, creditLimit: 1000, rate: 20 }, // 90% → needs $10
+                    ];
+                    
+                    const availableExtra = 30; // Only $30 available, need $70 total
+                    const allocations = allocateWaterfallPayment(debts, availableExtra);
+                    
+                    // Should pay highest utilization first (Card A)
+                    assertClose(allocations["Card A"], 30, 1, "Card A should get all available funds");
+                    assertClose(allocations["Card B"], 0, 1, "Card B should get nothing");
+                    
+                    return {
+                        details: `Available: ${formatCurrency(availableExtra)}\n` +
+                                `Card A gets: ${formatCurrency(allocations["Card A"])}\n` +
+                                `Card B gets: ${formatCurrency(allocations["Card B"])}`
+                    };
+                }
+            },
+            {
+                name: "AZEO Phase Detection",
+                category: "Waterfall",
+                run: () => {
+                    const debts = [
+                        { name: "Card A", balance: 100, creditLimit: 5000, rate: 18 }, // 2%
+                        { name: "Card B", balance: 50, creditLimit: 3000, rate: 20 },  // 1.67%
+                        { name: "Card C", balance: 25, creditLimit: 2000, rate: 15 },  // 1.25%
+                    ];
+                    
+                    const phase = determineWaterfallPhase(debts);
+                    
+                    if (phase.phase !== 'Phase 5: AZEO Optimization') {
+                        throw new Error(`Expected Phase 5 AZEO, got ${phase.phase}`);
+                    }
+                    if (!phase.isAZEO) {
+                        throw new Error("Expected isAZEO flag to be true");
+                    }
+                    if (phase.cardsToPayOff !== 2) {
+                        throw new Error(`Expected 2 cards to pay off, got ${phase.cardsToPayOff}`);
+                    }
+                    
+                    return {
+                        details: `Phase: ${phase.phase}\nCards to pay off: ${phase.cardsToPayOff}`
+                    };
+                }
+            },
+            {
+                name: "AZEO Payment Allocation",
+                category: "Waterfall",
+                run: () => {
+                    const debts = [
+                        { name: "Card A", balance: 100, creditLimit: 5000, rate: 18 },
+                        { name: "Card B", balance: 50, creditLimit: 3000, rate: 20 },
+                        { name: "Card C", balance: 25, creditLimit: 2000, rate: 15 }, // Smallest balance
+                    ];
+                    
+                    const availableExtra = 200; // Enough to pay off A and B
+                    const allocations = allocateWaterfallPayment(debts, availableExtra);
+                    
+                    // Should pay off Card A and B, keep C with balance
+                    assertEqual(allocations["Card A"], 100, "Card A should be paid in full");
+                    assertEqual(allocations["Card B"], 50, "Card B should be paid in full");
+                    assertEqual(allocations["Card C"], 0, "Card C should not receive payment (smallest balance)");
+                    
+                    return {
+                        details: `Card A (pay off): ${formatCurrency(allocations["Card A"])}\n` +
+                                `Card B (pay off): ${formatCurrency(allocations["Card B"])}\n` +
+                                `Card C (keep balance): ${formatCurrency(allocations["Card C"])}`
+                    };
+                }
+            },
+            {
+                name: "Monthly Payment with Interest",
+                category: "Payments",
+                run: () => {
+                    const balance = 1000;
+                    const rate = 18;
+                    const payment = 100;
+                    
+                    const interest = calculateMonthlyInterest(balance, rate);
+                    const principal = payment - interest;
+                    const newBalance = balance - principal;
+                    
+                    assertEqual(interest, 15, "Interest should be $15");
+                    assertEqual(principal, 85, "Principal should be $85");
+                    assertEqual(newBalance, 915, "New balance should be $915");
+                    
+                    return {
+                        details: `Starting Balance: ${formatCurrency(balance)}\n` +
+                                `Payment: ${formatCurrency(payment)}\n` +
+                                `Interest: ${formatCurrency(interest)}\n` +
+                                `Principal: ${formatCurrency(principal)}\n` +
+                                `New Balance: ${formatCurrency(newBalance)}`
+                    };
+                }
+            },
+            {
+                name: "Overall Utilization Calculation",
+                category: "Utilization",
+                run: () => {
+                    const debts = [
+                        { balance: 5000, creditLimit: 10000 },  // 50%
+                        { balance: 3000, creditLimit: 5000 },   // 60%
+                        { balance: 1000, creditLimit: 2000 },   // 50%
+                    ];
+                    
+                    const totalBalance = debts.reduce((sum, d) => sum + d.balance, 0);
+                    const totalLimit = debts.reduce((sum, d) => sum + d.creditLimit, 0);
+                    const overallUtil = (totalBalance / totalLimit) * 100;
+                    
+                    assertEqual(totalBalance, 9000, "Total balance");
+                    assertEqual(totalLimit, 17000, "Total credit limit");
+                    assertClose(overallUtil, 52.94, 0.1, "Overall utilization");
+                    
+                    const utilPercent = overallUtil.toFixed(2);
+                    return {
+                        details: `Total Balance: ${formatCurrency(totalBalance)}\nTotal Limit: ${formatCurrency(totalLimit)}\nOverall Utilization: ${utilPercent}%`
+                    };
+                }
+            },
+            {
+                name: "Phase 4 Overall Utilization Target",
+                category: "Waterfall",
+                run: () => {
+                    const debts = [
+                        { name: "Card A", balance: 500, creditLimit: 5000, rate: 18 },  // 10%
+                        { name: "Card B", balance: 1000, creditLimit: 5000, rate: 20 }, // 20%
+                        { name: "Card C", balance: 500, creditLimit: 2000, rate: 15 },  // 25%
+                    ];
+                    
+                    // Overall: 2000/12000 = 16.67%
+                    const phase = determineWaterfallPhase(debts);
+                    
+                    if (phase.phase !== 'Phase 4: Premium Qualification') {
+                        throw new Error(`Expected Phase 4, got ${phase.phase}`);
+                    }
+                    if (!phase.isOverall) {
+                        throw new Error("Expected isOverall flag to be true");
+                    }
+                    assertClose(phase.currentUtilization, 16.67, 0.1, "Current utilization");
+                    
+                    const currentUtilPercent = phase.currentUtilization ? phase.currentUtilization.toFixed(2) : '0.00';
+                    return {
+                        details: `Phase: ${phase.phase}\nCurrent Overall Utilization: ${currentUtilPercent}%\nTarget: 10%`
+                    };
+                }
+            },
+            {
+                name: "Edge Case: No Credit Cards",
+                category: "Edge Cases",
+                run: () => {
+                    const debts = [
+                        { name: "Loan A", balance: 5000, rate: 8 },  // No credit limit
+                        { name: "Loan B", balance: 3000, rate: 10 },
+                    ];
+                    
+                    const phase = determineWaterfallPhase(debts);
+                    
+                    if (phase.phase !== 'No Credit Cards') {
+                        throw new Error(`Expected 'No Credit Cards', got ${phase.phase}`);
+                    }
+                    
+                    return {
+                        details: "Correctly identified no credit cards scenario"
+                    };
+                }
+            },
+            {
+                name: "Edge Case: All Cards Paid Off",
+                category: "Edge Cases",
+                run: () => {
+                    const debts = [
+                        { name: "Card A", balance: 0, creditLimit: 5000, rate: 18 },
+                        { name: "Card B", balance: 0, creditLimit: 3000, rate: 20 },
+                    ];
+                    
+                    const phase = determineWaterfallPhase(debts);
+                    
+                    if (phase.phase !== 'Complete') {
+                        throw new Error(`Expected 'Complete', got ${phase.phase}`);
+                    }
+                    assertEqual(phase.progress, 100, "Progress should be 100%");
+                    
+                    return {
+                        details: "All cards paid off - Complete status"
+                    };
+                }
+            },
+            {
+                name: "Compound Interest Over Multiple Months",
+                category: "Interest",
+                run: () => {
+                    let balance = 1000;
+                    const rate = 12; // 12% APR = 1% per month
+                    const payment = 50;
+                    let totalInterest = 0;
+                    
+                    const calculations = [];
+                    for (let month = 1; month <= 3; month++) {
+                        const interest = calculateMonthlyInterest(balance, rate);
+                        const principal = Math.min(payment - interest, balance);
+                        balance = balance - principal;
+                        totalInterest += interest;
+                        
+                        calculations.push({
+                            month,
+                            startBalance: balance + principal,
+                            interest: interest.toFixed(2),
+                            principal: principal.toFixed(2),
+                            endBalance: balance.toFixed(2)
+                        });
+                    }
+                    
+                    assertClose(totalInterest, 28.796, 0.01, "Total interest over 3 months");
+                    
+                    return {
+                        details: calculations.map(c => 
+                            `Month ${c.month}: Balance ${c.startBalance.toFixed(2)} - Interest ${c.interest} - Principal ${c.principal} = ${c.endBalance}`
+                        ).join('\n')
+                    };
+                }
+            },
+            {
+                name: "Waterfall Exact Threshold Targeting",
+                category: "Waterfall",
+                run: () => {
+                    const debts = [
+                        { name: "Card A", balance: 950, creditLimit: 1000, rate: 18 }, // 95% → 89%
+                    ];
+                    
+                    const availableExtra = 100; // More than needed
+                    const allocations = allocateWaterfallPayment(debts, availableExtra);
+                    
+                    // Should pay exactly to 89%, then rest goes to avalanche
+                    // Since there's only one card, it gets all the money
+                    const targetBalance = 890; // 89% of 1000
+                    const thresholdPayment = 60; // 950 - 890
+                    const expectedPayment = 100; // All available funds go to the only card
+                    
+                    assertEqual(allocations["Card A"], expectedPayment, 
+                        "Single card should get all available funds");
+                    
+                    return {
+                        details: `Card at 95% utilization\n` +
+                                `Target: 89% (${formatCurrency(targetBalance)})\n` +
+                                `Payment to threshold: ${formatCurrency(thresholdPayment)}\n` +
+                                `Extra after threshold: ${formatCurrency(40)}\n` +
+                                `Total Payment: ${formatCurrency(allocations["Card A"])}`
+                    };
+                }
+            },
+            {
+                name: "Snowball Method Ordering",
+                category: "Payment Methods",
+                run: () => {
+                    const debts = [
+                        { name: "Card A", balance: 5000, rate: 18 },
+                        { name: "Card B", balance: 2000, rate: 22 },
+                        { name: "Card C", balance: 1000, rate: 15 },
+                    ];
+                    
+                    // Snowball should pay smallest balance first
+                    const snowballOrder = [...debts].sort((a, b) => a.balance - b.balance);
+                    
+                    assertEqual(snowballOrder[0].name, "Card C", "First should be Card C");
+                    assertEqual(snowballOrder[1].name, "Card B", "Second should be Card B");
+                    assertEqual(snowballOrder[2].name, "Card A", "Third should be Card A");
+                    
+                    return {
+                        details: `Snowball order:\n` +
+                                `1. ${snowballOrder[0].name}: ${formatCurrency(snowballOrder[0].balance)}\n` +
+                                `2. ${snowballOrder[1].name}: ${formatCurrency(snowballOrder[1].balance)}\n` +
+                                `3. ${snowballOrder[2].name}: ${formatCurrency(snowballOrder[2].balance)}`
+                    };
+                }
+            },
+            {
+                name: "Avalanche Method Ordering",
+                category: "Payment Methods",
+                run: () => {
+                    const debts = [
+                        { name: "Card A", balance: 5000, rate: 18 },
+                        { name: "Card B", balance: 2000, rate: 22 },
+                        { name: "Card C", balance: 1000, rate: 15 },
+                    ];
+                    
+                    // Avalanche should pay highest rate first
+                    const avalancheOrder = [...debts].sort((a, b) => b.rate - a.rate);
+                    
+                    assertEqual(avalancheOrder[0].name, "Card B", "First should be Card B (22%)");
+                    assertEqual(avalancheOrder[1].name, "Card A", "Second should be Card A (18%)");
+                    assertEqual(avalancheOrder[2].name, "Card C", "Third should be Card C (15%)");
+                    
+                    return {
+                        details: `Avalanche order:\n` +
+                                `1. ${avalancheOrder[0].name}: ${avalancheOrder[0].rate}% APR\n` +
+                                `2. ${avalancheOrder[1].name}: ${avalancheOrder[1].rate}% APR\n` +
+                                `3. ${avalancheOrder[2].name}: ${avalancheOrder[2].rate}% APR`
+                    };
+                }
+            },
+            {
+                name: "Payment Precision and Rounding",
+                category: "Edge Cases",
+                run: () => {
+                    const balance = 1234.56;
+                    const rate = 17.99;
+                    const monthlyInterest = calculateMonthlyInterest(balance, rate);
+                    const expected = 18.508112; // 1234.56 * 0.1799 / 12 = 18.508112
+                    
+                    assertClose(monthlyInterest, expected, 0.000001, "Interest calculation precision");
+                    
+                    // Test that payments don't exceed balance
+                    const payment = 2000;
+                    const effectivePayment = Math.min(payment, balance);
+                    assertEqual(effectivePayment, balance, "Payment should not exceed balance");
+                    
+                    return {
+                        details: `Balance: ${formatCurrency(balance)}\n` +
+                                `Interest: ${formatCurrency(monthlyInterest)}\n` +
+                                `Max payment: ${formatCurrency(effectivePayment)}`
+                    };
+                }
+            }
+        ];
+        
+        // Test runner
+        let testResults = [];
+        
+        function runTest(testCase) {
+            const startTime = performance.now();
+            let result = {
+                name: testCase.name,
+                category: testCase.category,
+                passed: false,
+                error: null,
+                details: null,
+                duration: 0
+            };
+            
+            try {
+                const testResult = testCase.run();
+                result.passed = true;
+                result.details = testResult.details || "Test passed";
+                result.expected = testResult.expected;
+                result.actual = testResult.actual;
+            } catch (error) {
+                result.passed = false;
+                result.error = error.message;
+            }
+            
+            result.duration = (performance.now() - startTime).toFixed(2);
+            return result;
+        }
+        
+        function runAllTests() {
+            testResults = [];
+            const resultsDiv = document.getElementById('test-results');
+            resultsDiv.innerHTML = '';
+            
+            // Group tests by category
+            const categories = [...new Set(testCases.map(t => t.category))];
+            
+            categories.forEach(category => {
+                const categoryTests = testCases.filter(t => t.category === category);
+                
+                const categoryDiv = document.createElement('div');
+                categoryDiv.innerHTML = `<h2>${category} Tests</h2>`;
+                resultsDiv.appendChild(categoryDiv);
+                
+                categoryTests.forEach(test => {
+                    const result = runTest(test);
+                    testResults.push(result);
+                    
+                    const testDiv = document.createElement('div');
+                    testDiv.className = `test-case ${result.passed ? 'test-pass' : 'test-fail'}`;
+                    
+                    let html = `<div class="test-title">${result.name}</div>`;
+                    
+                    if (result.details) {
+                        html += `<div class="test-details">${result.details.replace(/\n/g, '<br>')}</div>`;
+                    }
+                    
+                    if (result.expected && result.actual) {
+                        html += `<div class="test-details">`;
+                        html += `<span class="expected">Expected: ${result.expected}</span><br>`;
+                        html += `<span class="actual">Actual: ${result.actual}</span>`;
+                        html += `</div>`;
+                    }
+                    
+                    if (result.error) {
+                        html += `<div class="test-details error">${result.error.replace(/\n/g, '<br>')}</div>`;
+                    }
+                    
+                    html += `<div class="test-details">Duration: ${result.duration}ms</div>`;
+                    
+                    testDiv.innerHTML = html;
+                    categoryDiv.appendChild(testDiv);
+                });
+            });
+            
+            updateSummary();
+        }
+        
+        function updateSummary() {
+            const passed = testResults.filter(r => r.passed).length;
+            const failed = testResults.filter(r => !r.passed).length;
+            const total = testResults.length;
+            
+            const summaryDiv = document.getElementById('summary');
+            summaryDiv.className = `summary ${failed === 0 ? 'all-pass' : 'has-fail'}`;
+            summaryDiv.innerHTML = `
+                <strong>Test Results:</strong> 
+                ${passed} passed, ${failed} failed out of ${total} tests
+                ${failed === 0 ? '✅ All tests passed!' : '⚠️ Some tests failed'}
+            `;
+        }
+        
+        function clearResults() {
+            document.getElementById('test-results').innerHTML = '';
+            document.getElementById('summary').innerHTML = '';
+            testResults = [];
+        }
+        
+        // Auto-run tests on load
+        window.addEventListener('DOMContentLoaded', runAllTests);
+    </script>
+</body>
+</html>

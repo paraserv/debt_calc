@@ -984,6 +984,25 @@
         body.dark .total-interest-cell { color: #f87171 !important; }
         body.dark .total-principal-cell { color: #34d399 !important; }
         body.dark .totals-subheader-cell { background: #0b1220 !important; color: #cbd5e1 !important; }
+        /* Fix bright backgrounds in various elements */
+        body.dark .notification { background: #1f2937 !important; color: #e5e7eb !important; }
+        body.dark .notification-warning { background: #2d2618 !important; color: #fbbf24 !important; }
+        body.dark .notification-error { background: #2d1a1a !important; color: #f87171 !important; }
+        body.dark .notification-success { background: #1a2d1f !important; color: #34d399 !important; }
+        body.dark .debt-group { background: #0f172a !important; }
+        body.dark .debt-items { background: #0b1220 !important; }
+        body.dark .debt-header { background: #111827 !important; }
+        body.dark .help-text { background: #1f2937 !important; color: #9ca3af !important; }
+        body.dark .before-start { background: #2d1a1a !important; }
+        body.dark .before-start-warning { color: #fbbf24 !important; }
+        body.dark .payment-timeline { background: #0f172a !important; }
+        body.dark .timeline-container { background: #0b1220 !important; }
+        body.dark .error-message { background: #2d1a1a !important; color: #f87171 !important; }
+        body.dark .warning-message { background: #2d2618 !important; color: #fbbf24 !important; }
+        body.dark .info-message { background: #1a2333 !important; color: #60a5fa !important; }
+        body.dark .phase-transition { background: #1f2937 !important; border-color: #374151 !important; }
+        body.dark .phase-complete { background: #1a2d1f !important; border-color: #34d399 !important; }
+        body.dark .payoff-collapse { background: #1f2937 !important; color: #9ca3af !important; }
         body.dark .schedule-preview { background: #0b1220; border: 1px solid #1f2937; }
         body.dark .payoff-collapse { background: #0f172a !important; color: #9ca3af !important; border: 1px solid #1f2937; }
     </style>
@@ -1056,9 +1075,9 @@
                     <div class="method-desc">Best CFI first</div>
                     <span class="info-tooltip" data-tooltip="">ℹ️</span>
                 </div>
-                <div class="method-btn" onclick="setMethod('utilization')" id="method-utilization" data-tooltip="Optimizes credit score by: 1) Paying over-limit cards, 2) Getting cards below 30% utilization (starting with those closest to 30%), 3) Then highest rate cards. Best for credit improvement.">
+                <div class="method-btn" onclick="setMethod('utilization')" id="method-utilization" data-tooltip="Advanced waterfall strategy with 5 phases: Phase 1: Emergency (89% threshold), Phase 2: Critical (49%), Phase 3: Good Standing (29%), Phase 4: Premium (10% overall), Phase 5: AZEO optimization. Systematically improves credit score for balance transfer qualification.">
                     <div class="method-title">📈 Credit Score</div>
-                    <div class="method-desc">High utilization first</div>
+                    <div class="method-desc">Waterfall strategy</div>
                     <span class="info-tooltip" data-tooltip="">ℹ️</span>
                 </div>
                 <div class="method-btn" onclick="setMethod('custom')" id="method-custom" data-tooltip="Drag and drop debts in the table below to set your own custom payoff order based on your personal priorities.">
@@ -1121,6 +1140,9 @@
         </div>
 
         <h2>📅 Payoff Schedule</h2>
+        <div id="scheduleControls" style="display: none; padding: 10px; background: #2d3748; border-radius: 8px 8px 0 0; margin-bottom: 0;">
+            <!-- Control row will be inserted here -->
+        </div>
         <div class="scroll-container">
             <table id="amortizationTable">
                 <thead>
@@ -1190,6 +1212,11 @@
         let nextDebtId = 4;
         let startDate = new Date();
         let lastCalculatedMinPayments = {};
+        
+        // Helper function for theme-aware colors
+        function getThemeColor(lightColor, darkColor) {
+            return document.body.classList.contains('dark') ? darkColor : lightColor;
+        }
 
         // Initialize start date to current month
         function initializeStartDate() {
@@ -2791,6 +2818,134 @@
             updateExtraPayments();
         }
 
+        function getPhaseThresholdText(phase) {
+            if (!phase) return '';
+            
+            if (phase.includes('Emergency Recovery')) {
+                return ' → Target: <89%';
+            } else if (phase.includes('Critical Threshold')) {
+                return ' → Target: <49%';
+            } else if (phase.includes('Good Standing')) {
+                return ' → Target: <29%';
+            } else if (phase.includes('Premium Qualification')) {
+                return ' → Target: <10% overall';
+            } else if (phase.includes('AZEO')) {
+                return ' → Target: 1 card at 1-9%';
+            }
+            return '';
+        }
+        
+        function determineWaterfallPhase(activeDebts) {
+            const creditCards = activeDebts.filter(d => !d.paidOff && d.creditLimit && d.creditLimit > 0);
+            
+            if (creditCards.length === 0) {
+                return { 
+                    phase: 'Complete', 
+                    phaseNumber: 6,
+                    progress: 100,
+                    description: 'All debts paid off'
+                };
+            }
+            
+            const totalCreditLimit = creditCards.reduce((sum, d) => sum + d.creditLimit, 0);
+            const totalCreditBalance = creditCards.reduce((sum, d) => sum + d.currentBalance, 0);
+            const overallUtil = totalCreditLimit > 0 ? (totalCreditBalance / totalCreditLimit) * 100 : 0;
+            
+            // Check for Phase 1: Emergency Recovery (89% threshold)
+            const over89Cards = creditCards.filter(d => (d.currentBalance / d.creditLimit) * 100 > 89);
+            if (over89Cards.length > 0) {
+                const progress = ((creditCards.length - over89Cards.length) / creditCards.length) * 100;
+                return { 
+                    phase: 'Phase 1: Emergency Recovery',
+                    phaseNumber: 1,
+                    progress: Math.round(progress),
+                    description: `Getting ${over89Cards.length} card(s) below 89% utilization`,
+                    cardsAboveThreshold: over89Cards.length,
+                    threshold: 89
+                };
+            }
+            
+            // Check for Phase 2: Critical Threshold (49%)
+            const over49Cards = creditCards.filter(d => (d.currentBalance / d.creditLimit) * 100 > 49);
+            if (over49Cards.length > 0) {
+                const progress = ((creditCards.length - over49Cards.length) / creditCards.length) * 100;
+                return { 
+                    phase: 'Phase 2: Critical Threshold',
+                    phaseNumber: 2,
+                    progress: Math.round(progress),
+                    description: `Getting ${over49Cards.length} card(s) below 49% utilization`,
+                    cardsAboveThreshold: over49Cards.length,
+                    threshold: 49
+                };
+            }
+            
+            // Check for Phase 3: Good Standing (29%)
+            const over29Cards = creditCards.filter(d => (d.currentBalance / d.creditLimit) * 100 > 29);
+            if (over29Cards.length > 0) {
+                const progress = ((creditCards.length - over29Cards.length) / creditCards.length) * 100;
+                return { 
+                    phase: 'Phase 3: Good Standing',
+                    phaseNumber: 3,
+                    progress: Math.round(progress),
+                    description: `Getting ${over29Cards.length} card(s) below 29% utilization`,
+                    cardsAboveThreshold: over29Cards.length,
+                    threshold: 29
+                };
+            }
+            
+            // Check for Phase 4: Premium Qualification (10% overall)
+            if (overallUtil > 10) {
+                const progress = Math.max(0, Math.round((1 - (overallUtil - 10) / 20) * 100));
+                return { 
+                    phase: 'Phase 4: Premium Qualification',
+                    phaseNumber: 4,
+                    progress: progress,
+                    description: `Reducing overall utilization to under 10% (currently ${overallUtil.toFixed(1)}%)`,
+                    overallUtilization: overallUtil
+                };
+            }
+            
+            // Phase 5: AZEO Optimization
+            const cardsWithBalance = creditCards.filter(d => d.currentBalance > 0);
+            if (cardsWithBalance.length > 1) {
+                return { 
+                    phase: 'Phase 5: AZEO Optimization',
+                    phaseNumber: 5,
+                    progress: Math.round((1 - (cardsWithBalance.length - 1) / creditCards.length) * 100),
+                    description: 'Optimizing for All Zero Except One',
+                    cardsWithBalance: cardsWithBalance.length
+                };
+            } else if (cardsWithBalance.length === 1) {
+                const singleCard = cardsWithBalance[0];
+                const utilization = (singleCard.currentBalance / singleCard.creditLimit) * 100;
+                if (utilization >= 1 && utilization <= 9) {
+                    return { 
+                        phase: 'Phase 5: AZEO Complete',
+                        phaseNumber: 5,
+                        progress: 100,
+                        description: 'AZEO optimization achieved - one card at optimal utilization',
+                        optimalCard: singleCard.name
+                    };
+                } else {
+                    return { 
+                        phase: 'Phase 5: AZEO Optimization',
+                        phaseNumber: 5,
+                        progress: 90,
+                        description: `Adjusting last card to 1-9% utilization (currently ${utilization.toFixed(1)}%)`,
+                        currentUtilization: utilization
+                    };
+                }
+            }
+            
+            // All cards at zero
+            return { 
+                phase: 'Complete',
+                phaseNumber: 6,
+                progress: 100,
+                description: 'All credit cards paid off'
+            };
+        }
+
         function calculatePayoffSchedule(debtList = null, sortMethod = currentMethod) {
             try {
                 let workingDebts = debtList ? JSON.parse(JSON.stringify(debtList)) : JSON.parse(JSON.stringify(debts));
@@ -2874,7 +3029,7 @@
                     
                     // Make payments
                     if (sortMethod === 'utilization') {
-                        // Credit Score Method - special handling
+                        // Waterfall Credit Score Method - sophisticated phase-based approach
                         
                         // First, make minimum payments on all debts
                         activeDebts.forEach(debt => {
@@ -2897,27 +3052,33 @@
                             }
                         });
                         
-                        // Apply extra payment according to credit score strategy
+                        // Determine current phase and calculate phase information
+                        const phaseInfo = determineWaterfallPhase(activeDebts);
+                        monthData.phase = phaseInfo.phase;
+                        monthData.phaseProgress = phaseInfo.progress;
+                        
+                        // Apply extra payment according to waterfall strategy
                         while (availableExtra > 0.01 && activeDebts.some(d => !d.paidOff)) {
                             let targetDebt = null;
+                            let targetThreshold = null;
                             
-                            // Find next debt to pay according to credit score strategy
                             const unpaidDebts = activeDebts.filter(d => !d.paidOff);
+                            const creditCards = unpaidDebts.filter(d => d.creditLimit && d.creditLimit > 0);
                             
-                            // Priority 1: Over-limit cards (>100%)
-                            const overLimitDebts = unpaidDebts.filter(d => {
-                                if (!d.creditLimit) return false;
+                            // Phase 1: Emergency Recovery - Get all cards below 89%
+                            const over89Cards = creditCards.filter(d => {
                                 const util = (d.currentBalance / d.creditLimit) * 100;
-                                return util > 100;
+                                return util > 89;
                             }).sort((a, b) => {
                                 const utilA = (a.currentBalance / a.creditLimit) * 100;
                                 const utilB = (b.currentBalance / b.creditLimit) * 100;
                                 return utilB - utilA;
                             });
                             
-                            if (overLimitDebts.length > 0) {
-                                targetDebt = overLimitDebts[0];
-                                const targetBalance = targetDebt.creditLimit; // Get to 100%
+                            if (over89Cards.length > 0) {
+                                targetDebt = over89Cards[0];
+                                targetThreshold = 89;
+                                const targetBalance = targetDebt.creditLimit * 0.89;
                                 const amountNeeded = Math.max(0, targetDebt.currentBalance - targetBalance);
                                 const extraPayment = Math.min(availableExtra, amountNeeded);
                                 
@@ -2926,24 +3087,25 @@
                                     monthData.snowballAmount[targetDebt.name] += extraPayment;
                                     targetDebt.currentBalance -= extraPayment;
                                     availableExtra -= extraPayment;
+                                    continue;
                                 }
                             }
                             
-                            // Priority 2: Cards over 30% - pay down TO 30%
-                            if (availableExtra > 0.01) {
-                                const over30Debts = unpaidDebts.filter(d => {
-                                    if (!d.creditLimit || d.paidOff) return false;
+                            // Phase 2: Critical Threshold - Get all cards below 49%
+                            if (availableExtra > 0.01 && !targetDebt) {
+                                const over49Cards = creditCards.filter(d => {
                                     const util = (d.currentBalance / d.creditLimit) * 100;
-                                    return util > 30;
+                                    return util > 49;
                                 }).sort((a, b) => {
                                     const utilA = (a.currentBalance / a.creditLimit) * 100;
                                     const utilB = (b.currentBalance / b.creditLimit) * 100;
                                     return utilB - utilA;
                                 });
                                 
-                                if (over30Debts.length > 0) {
-                                    targetDebt = over30Debts[0];
-                                    const targetBalance = targetDebt.creditLimit * 0.30;
+                                if (over49Cards.length > 0) {
+                                    targetDebt = over49Cards[0];
+                                    targetThreshold = 49;
+                                    const targetBalance = targetDebt.creditLimit * 0.49;
                                     const amountNeeded = Math.max(0, targetDebt.currentBalance - targetBalance);
                                     const extraPayment = Math.min(availableExtra, amountNeeded);
                                     
@@ -2952,16 +3114,118 @@
                                         monthData.snowballAmount[targetDebt.name] += extraPayment;
                                         targetDebt.currentBalance -= extraPayment;
                                         availableExtra -= extraPayment;
+                                        continue;
                                     }
                                 }
                             }
                             
-                            // Priority 3: All at/below 30% - use avalanche (highest rate)
-                            if (availableExtra > 0.01) {
-                                const eligibleDebts = unpaidDebts.sort((a, b) => b.rate - a.rate);
+                            // Phase 3: Good Standing - Get all cards below 29%
+                            if (availableExtra > 0.01 && !targetDebt) {
+                                const over29Cards = creditCards.filter(d => {
+                                    const util = (d.currentBalance / d.creditLimit) * 100;
+                                    return util > 29;
+                                }).sort((a, b) => {
+                                    const utilA = (a.currentBalance / a.creditLimit) * 100;
+                                    const utilB = (b.currentBalance / b.creditLimit) * 100;
+                                    return utilB - utilA;
+                                });
                                 
-                                if (eligibleDebts.length > 0) {
-                                    targetDebt = eligibleDebts[0];
+                                if (over29Cards.length > 0) {
+                                    targetDebt = over29Cards[0];
+                                    targetThreshold = 29;
+                                    const targetBalance = targetDebt.creditLimit * 0.29;
+                                    const amountNeeded = Math.max(0, targetDebt.currentBalance - targetBalance);
+                                    const extraPayment = Math.min(availableExtra, amountNeeded);
+                                    
+                                    if (extraPayment > 0) {
+                                        monthData.payments[targetDebt.name] += extraPayment;
+                                        monthData.snowballAmount[targetDebt.name] += extraPayment;
+                                        targetDebt.currentBalance -= extraPayment;
+                                        availableExtra -= extraPayment;
+                                        continue;
+                                    }
+                                }
+                            }
+                            
+                            // Phase 4: Premium Qualification - Reduce overall utilization to under 10%
+                            if (availableExtra > 0.01 && !targetDebt) {
+                                const totalCreditLimit = creditCards.reduce((sum, d) => sum + d.creditLimit, 0);
+                                const totalCreditBalance = creditCards.reduce((sum, d) => sum + d.currentBalance, 0);
+                                const overallUtil = totalCreditLimit > 0 ? (totalCreditBalance / totalCreditLimit) * 100 : 0;
+                                
+                                if (overallUtil > 10) {
+                                    // Pay down highest balance cards first for maximum impact on overall utilization
+                                    const sortedByBalance = creditCards
+                                        .filter(d => d.currentBalance > 0)
+                                        .sort((a, b) => b.currentBalance - a.currentBalance);
+                                    
+                                    if (sortedByBalance.length > 0) {
+                                        targetDebt = sortedByBalance[0];
+                                        const extraPayment = Math.min(availableExtra, targetDebt.currentBalance);
+                                        
+                                        if (extraPayment > 0) {
+                                            monthData.payments[targetDebt.name] += extraPayment;
+                                            monthData.snowballAmount[targetDebt.name] += extraPayment;
+                                            targetDebt.currentBalance -= extraPayment;
+                                            availableExtra -= extraPayment;
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Phase 5: AZEO (All Zero Except One) - Keep one card at 1-9%, rest at 0%
+                            if (availableExtra > 0.01 && !targetDebt) {
+                                const cardsWithBalance = creditCards.filter(d => d.currentBalance > 0);
+                                
+                                if (cardsWithBalance.length > 1) {
+                                    // Pay off all but the smallest balance card
+                                    const sortedByBalance = cardsWithBalance.sort((a, b) => a.currentBalance - b.currentBalance);
+                                    const smallestCard = sortedByBalance[0];
+                                    const targetUtil = (smallestCard.currentBalance / smallestCard.creditLimit) * 100;
+                                    
+                                    // If smallest card is already at 1-9%, pay others
+                                    if (targetUtil >= 1 && targetUtil <= 9 && sortedByBalance.length > 1) {
+                                        targetDebt = sortedByBalance[1];
+                                    } else if (targetUtil > 9) {
+                                        // Bring smallest card down to 9%
+                                        targetDebt = smallestCard;
+                                        const targetBalance = smallestCard.creditLimit * 0.09;
+                                        const amountNeeded = Math.max(0, smallestCard.currentBalance - targetBalance);
+                                        const extraPayment = Math.min(availableExtra, amountNeeded);
+                                        
+                                        if (extraPayment > 0) {
+                                            monthData.payments[targetDebt.name] += extraPayment;
+                                            monthData.snowballAmount[targetDebt.name] += extraPayment;
+                                            targetDebt.currentBalance -= extraPayment;
+                                            availableExtra -= extraPayment;
+                                            continue;
+                                        }
+                                    } else if (sortedByBalance.length > 1) {
+                                        // Pay other cards
+                                        targetDebt = sortedByBalance[1];
+                                    }
+                                    
+                                    if (targetDebt) {
+                                        const extraPayment = Math.min(availableExtra, targetDebt.currentBalance);
+                                        
+                                        if (extraPayment > 0) {
+                                            monthData.payments[targetDebt.name] += extraPayment;
+                                            monthData.snowballAmount[targetDebt.name] += extraPayment;
+                                            targetDebt.currentBalance -= extraPayment;
+                                            availableExtra -= extraPayment;
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Final fallback: Pay any remaining debts (loans) using avalanche
+                            if (availableExtra > 0.01 && !targetDebt) {
+                                const remainingDebts = unpaidDebts.sort((a, b) => b.rate - a.rate);
+                                
+                                if (remainingDebts.length > 0) {
+                                    targetDebt = remainingDebts[0];
                                     const extraPayment = Math.min(availableExtra, targetDebt.currentBalance);
                                     
                                     if (extraPayment > 0) {
@@ -3065,10 +3329,49 @@
                 
                 const header = document.getElementById('amortizationHeader');
                 const body = document.getElementById('amortizationBody');
+                const controlsDiv = document.getElementById('scheduleControls');
                 
-                header.innerHTML = '<th>Month</th><th>Date</th><th>Extra</th>';
+                // Clear the body first
                 body.innerHTML = '';
                 
+                // Set up control row above the table
+                controlsDiv.style.display = 'block';
+                if (currentMethod === 'utilization') {
+                    controlsDiv.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button onclick="openScheduleInPopup()" style="background: transparent; 
+                                    border: none; cursor: pointer; padding: 0;"
+                                    title="Open in new window">
+                                <span style="display: inline-block; width: 24px; height: 24px; background: #4c51bf; color: white; border-radius: 4px; font-size: 14px; line-height: 24px; text-align: center; font-weight: bold;">↗</span>
+                            </button>
+                            <button onclick="updateSimplifiedWaterfallView()" style="padding: 8px 16px; 
+                                    background: #4c51bf; 
+                                    color: white; border: none; 
+                                    border-radius: 5px; cursor: pointer; font-weight: bold;">
+                                📈 Show Simplified Waterfall View
+                            </button>
+                            <span style="color: #a0aec0; font-size: 14px;">
+                                Focus on utilization changes and phase progression
+                            </span>
+                        </div>
+                    `;
+                } else {
+                    controlsDiv.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <button onclick="openScheduleInPopup()" style="background: transparent; 
+                                    border: none; cursor: pointer; padding: 0;"
+                                    title="Open in new window">
+                                <span style="display: inline-block; width: 24px; height: 24px; background: #4c51bf; color: white; border-radius: 4px; font-size: 14px; line-height: 24px; text-align: center; font-weight: bold;">↗</span>
+                            </button>
+                            <span style="color: #a0aec0; font-size: 14px;">
+                                ${currentMethod.charAt(0).toUpperCase() + currentMethod.slice(1)} Method Payoff Schedule
+                            </span>
+                        </div>
+                    `;
+                }
+                
+                // Now set the headers AFTER the control row
+                header.innerHTML = '<th>Month</th><th>Date</th><th>Extra</th>';
                 debts.forEach(debt => {
                     const escapedName = escapeHtml(debt.name);
                     header.innerHTML += `<th colspan="3">${escapedName}</th>`;
@@ -3080,7 +3383,7 @@
                 debts.forEach(() => {
                     subHeaderRow.innerHTML += '<td class="totals-subheader-cell"><strong>Payment</strong></td><td class="totals-subheader-cell"><strong>Interest</strong></td><td class="totals-subheader-cell"><strong>Balance</strong></td>';
                 });
-                subHeaderRow.innerHTML += '<td class="totals-subheader-cell" style="background: #f7fafc;"><strong>Payment</strong></td><td class="totals-subheader-cell" style="background: #f7fafc;"><strong>Interest</strong></td><td class="totals-subheader-cell" style="background: #f7fafc;"><strong>Principal</strong></td><td class="totals-subheader-cell" style="background: #f7fafc;"><strong>Balance</strong></td>';
+                subHeaderRow.innerHTML += `<td class="totals-subheader-cell" style="background: ${getThemeColor('#f7fafc', '#2d3748')}; color: ${getThemeColor('#4a5568', '#e2e8f0')};"><strong>Payment</strong></td><td class="totals-subheader-cell" style="background: ${getThemeColor('#f7fafc', '#2d3748')}; color: ${getThemeColor('#4a5568', '#e2e8f0')};"><strong>Interest</strong></td><td class="totals-subheader-cell" style="background: ${getThemeColor('#f7fafc', '#2d3748')}; color: ${getThemeColor('#4a5568', '#e2e8f0')};"><strong>Principal</strong></td><td class="totals-subheader-cell" style="background: ${getThemeColor('#f7fafc', '#2d3748')}; color: ${getThemeColor('#4a5568', '#e2e8f0')};"><strong>Balance</strong></td>`;
                 
                 let rowsToShow = [];
                 if (showFull || schedule.length <= 24) {
@@ -3093,16 +3396,17 @@
                     ];
                 }
                 
-                rowsToShow.forEach(monthData => {
+                let previousPhase = null;
+                rowsToShow.forEach((monthData, index) => {
                     if (monthData.isEllipsis) {
                         const row = body.insertRow();
                         row.style.cursor = 'pointer';
                         row.onclick = () => updateAmortizationTable(true);
-                        row.innerHTML = `<td colspan="100%" class="schedule-ellipsis schedule-ellipsis-row" style="background: #f0f4f8; padding: 15px; text-align: left; border: 2px solid #e2e8f0;">
+                        row.innerHTML = `<td colspan="100%" class="schedule-ellipsis schedule-ellipsis-row" style="background: ${getThemeColor('#f0f4f8', '#0f172a')}; padding: 15px; text-align: left; border: 2px solid ${getThemeColor('#e2e8f0', '#1f2937')};">
                             <div style="display: flex; justify-content: space-between; align-items: center;">
                                 <div>
                                     <strong>▶</strong> Months ${monthData.skippedFrom}-${monthData.skippedTo} hidden (${monthData.skippedTo - monthData.skippedFrom + 1} months) 
-                                    <span style="color: #667eea; margin-left: 10px;">Click anywhere to expand</span>
+                                    <span style="color: ${getThemeColor('#667eea', '#818cf8')}; margin-left: 10px;">Click anywhere to expand</span>
                                 </div>
                                 <div>
                                     <button onclick="event.stopPropagation(); exportSimplifiedToCSV()" style="padding: 5px 10px; font-size: 12px;">📥 Simple Export</button>
@@ -3111,6 +3415,20 @@
                             </div>
                         </td>`;
                         return;
+                    }
+                    
+                    // Check for phase transition (only for waterfall method)
+                    if (currentMethod === 'utilization' && monthData.phase && monthData.phase !== previousPhase) {
+                        const phaseRow = body.insertRow();
+                        phaseRow.innerHTML = `
+                            <td colspan="100%" style="background: ${getThemeColor('#e6f2ff', '#1a202c')}; 
+                                                      color: ${getThemeColor('#2563eb', '#60a5fa')}; padding: 10px; text-align: center; 
+                                                      font-weight: bold; font-size: 14px; 
+                                                      border-top: 1px solid ${getThemeColor('#cbd5e1', '#374151')}; border-bottom: 1px solid ${getThemeColor('#cbd5e1', '#374151')};">
+                                🎯 ${monthData.phase}${getPhaseThresholdText(monthData.phase)}
+                            </td>
+                        `;
+                        previousPhase = monthData.phase;
                     }
                     
                     const row = body.insertRow();
@@ -3150,10 +3468,10 @@
                     
                     const totalPrincipal = totalPayment - totalInterest;
                     row.innerHTML += `
-                        <td class="total-cell" style="background: #f7fafc; font-weight: bold;">${formatCurrency(totalPayment)}</td>
-                        <td class="total-interest-cell" style="background: #f7fafc; color: #e53e3e;">${formatCurrency(totalInterest)}</td>
-                        <td class="total-principal-cell" style="background: #f7fafc; color: #38a169;">${formatCurrency(totalPrincipal)}</td>
-                        <td class="total-balance-cell" style="background: #f7fafc; font-weight: bold;">${formatCurrency(totalBalance)}</td>
+                        <td class="total-cell" style="background: ${getThemeColor('#f7fafc', '#2d3748')}; color: ${getThemeColor('#2d3748', '#e2e8f0')}; font-weight: bold;">${formatCurrency(totalPayment)}</td>
+                        <td class="total-interest-cell" style="background: ${getThemeColor('#f7fafc', '#2d3748')}; color: ${getThemeColor('#e53e3e', '#fc8181')};">${formatCurrency(totalInterest)}</td>
+                        <td class="total-principal-cell" style="background: ${getThemeColor('#f7fafc', '#2d3748')}; color: ${getThemeColor('#38a169', '#68d391')};">${formatCurrency(totalPrincipal)}</td>
+                        <td class="total-balance-cell" style="background: ${getThemeColor('#f7fafc', '#2d3748')}; color: ${getThemeColor('#2d3748', '#e2e8f0')}; font-weight: bold;">${formatCurrency(totalBalance)}</td>
                     `;
                 });
                 
@@ -3168,8 +3486,399 @@
                 updateSummary(schedule);
                 updatePayoffDates(schedule.debtPayoffMonths);
                 
+                // Auto-save state after updates
+                autoSave();
+                
             } catch (error) {
                 console.error('Error updating amortization table:', error);
+            }
+        }
+
+        function openScheduleInPopup() {
+            // Create a new window with the schedule
+            const popupWindow = window.open('about:blank', 'PayoffSchedule', 
+                'width=1200,height=800,resizable=yes,scrollbars=yes,menubar=no,toolbar=no,location=no,status=no');
+            
+            if (!popupWindow) {
+                alert('Please allow popups for this site to open the schedule in a new window.');
+                return;
+            }
+            
+            // Get current schedule HTML and clean it
+            const header = document.getElementById('amortizationHeader').outerHTML;
+            const bodyElement = document.getElementById('amortizationBody').cloneNode(true);
+            
+            // Remove control rows (those with buttons or pop-out icons)
+            const rows = bodyElement.querySelectorAll('tr');
+            rows.forEach(row => {
+                if (row.innerHTML.includes('Show Simplified') || 
+                    row.innerHTML.includes('Show Detailed') || 
+                    row.innerHTML.includes('width: 24px; height: 24px; background:')) {
+                    row.remove();
+                }
+            });
+            
+            const body = bodyElement.outerHTML;
+            const currentMethodName = currentMethod.charAt(0).toUpperCase() + currentMethod.slice(1);
+            
+            // Build the popup HTML
+            const popupHTML = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Debt Payoff Schedule - ${currentMethodName} Method</title>
+                    <style>
+                        body {
+                            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                            margin: 20px;
+                            background: #1a202c;
+                            color: #e2e8f0;
+                        }
+                        h1 {
+                            color: #e2e8f0;
+                            border-bottom: 2px solid #4a5568;
+                            padding-bottom: 10px;
+                        }
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin-top: 20px;
+                        }
+                        th, td {
+                            border: 1px solid #4a5568;
+                            padding: 8px;
+                            text-align: left;
+                        }
+                        th {
+                            background: #2d3748;
+                            color: #e2e8f0;
+                            font-weight: bold;
+                        }
+                        tr:nth-child(even) {
+                            background: #2d3748;
+                        }
+                        tr:hover {
+                            background: #374151;
+                        }
+                        .paid-off {
+                            color: #68d391;
+                            font-weight: bold;
+                        }
+                        .current-focus {
+                            background: #4c51bf !important;
+                            color: white;
+                        }
+                        .extra-in-payment {
+                            color: #9f7aea;
+                            font-size: 11px;
+                        }
+                        .total-cell {
+                            font-weight: bold;
+                            background: #2d3748 !important;
+                            color: #e2e8f0 !important;
+                        }
+                        .total-interest-cell {
+                            color: #fc8181;
+                            background: #2d3748 !important;
+                        }
+                        .total-principal-cell {
+                            color: #68d391;
+                            background: #2d3748 !important;
+                        }
+                        .total-balance-cell {
+                            font-weight: bold;
+                            background: #2d3748 !important;
+                            color: #e2e8f0 !important;
+                        }
+                        /* Fix all td elements to have proper text color */
+                        td {
+                            color: #e2e8f0;
+                            background: #1a202c;
+                        }
+                        /* Ensure balance columns are readable */
+                        td:nth-child(3n) { /* Every 3rd column (balance columns) */
+                            color: #e2e8f0 !important;
+                        }
+                        .controls {
+                            position: sticky;
+                            top: 0;
+                            background: #1a202c;
+                            padding: 10px 0;
+                            z-index: 100;
+                            border-bottom: 2px solid #4a5568;
+                            margin-bottom: 20px;
+                        }
+                        button {
+                            padding: 8px 16px;
+                            margin-right: 10px;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            border: none;
+                            background: #4c51bf;
+                            color: white;
+                        }
+                        button:hover {
+                            background: #5a67d8;
+                        }
+                        .totals-subheader-cell {
+                            background: #2d3748 !important;
+                            color: #e2e8f0 !important;
+                        }
+                        /* Fix phase headers in popup */
+                        td[style*="background: #4a5568"] {
+                            background: #2d3748 !important;
+                        }
+                        td[style*="background: #22543d"],
+                        td[style*="background: #2f855a"] {
+                            background: #1a202c !important;
+                            border: 1px solid #22543d !important;
+                        }
+                        @media print {
+                            .controls {
+                                display: none;
+                            }
+                            body {
+                                background: white;
+                                color: black;
+                            }
+                            th {
+                                background: #f7fafc !important;
+                                color: black !important;
+                            }
+                            tr:nth-child(even) {
+                                background: #f7fafc !important;
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="controls">
+                        <button onclick="window.print()">🖨️ Print Schedule</button>
+                        <button onclick="window.close()">❌ Close Window</button>
+                        <span style="float: right; color: #a0aec0;">
+                            ${currentMethodName} Method Payoff Schedule
+                        </span>
+                    </div>
+                    <h1>Debt Payoff Schedule - ${currentMethodName} Method</h1>
+                    <table>
+                        <thead>
+                            ${header}
+                        </thead>
+                        <tbody>
+                            ${body}
+                        </tbody>
+                    </table>
+                </body>
+                </html>
+            `;
+            
+            // Set the document content
+            popupWindow.document.write(popupHTML);
+            popupWindow.document.close();
+            
+            // Update the title and URL bar
+            popupWindow.document.title = `Debt Payoff Schedule - ${currentMethodName} Method`;
+        }
+        
+        function updateSimplifiedWaterfallView() {
+            try {
+                const schedule = calculatePayoffSchedule();
+                
+                if (schedule.length === 0 || currentMethod !== 'utilization') {
+                    return; // Only show for waterfall method
+                }
+                
+                const header = document.getElementById('amortizationHeader');
+                const body = document.getElementById('amortizationBody');
+                
+                // Create simplified header
+                header.innerHTML = `
+                    <th>Month</th>
+                    <th>Target Card(s)</th>
+                    <th>Utilization Change</th>
+                    <th>Payment<br><span style="font-size: 11px; font-weight: normal;">(min + extra = total)</span></th>
+                    <th>Status</th>
+                `;
+                
+                body.innerHTML = '';
+                
+                // Set up control row above the table
+                const controlsDiv = document.getElementById('scheduleControls');
+                controlsDiv.style.display = 'block';
+                controlsDiv.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <button onclick="openScheduleInPopup()" style="background: transparent; 
+                                border: none; cursor: pointer; padding: 0;"
+                                title="Open in new window">
+                            <span style="display: inline-block; width: 24px; height: 24px; background: #4c51bf; color: white; border-radius: 4px; font-size: 14px; line-height: 24px; text-align: center; font-weight: bold;">↗</span>
+                        </button>
+                        <button onclick="updateAmortizationTable()" style="padding: 8px 16px; 
+                                background: #4c51bf; color: white; border: none; 
+                                border-radius: 5px; cursor: pointer;">
+                            📊 Show Detailed View
+                        </button>
+                        <span style="color: #a0aec0; font-size: 14px;">
+                            Simplified view shows only cards being actively paid down
+                        </span>
+                    </div>
+                `;
+                
+                let previousPhase = null;
+                let phaseStartMonth = 0;
+                
+                schedule.forEach((monthData, index) => {
+                    // Track phase changes
+                    if (monthData.phase !== previousPhase) {
+                        if (previousPhase && monthData.phase) {
+                            // Add phase completion row
+                            const completionRow = body.insertRow();
+                            completionRow.innerHTML = `
+                                <td colspan="5" style="background: ${getThemeColor('#e6fffa', '#1a202c')}; color: ${getThemeColor('#22543d', '#68d391')}; 
+                                         padding: 8px; text-align: center; font-weight: bold; 
+                                         border: 1px solid ${getThemeColor('#38a169', '#22543d')};">
+                                    ✅ Complete: ${previousPhase} (${index - phaseStartMonth} months)
+                                </td>
+                            `;
+                        }
+                        
+                        // Add new phase header
+                        if (monthData.phase && monthData.phase !== 'Complete') {
+                            const phaseRow = body.insertRow();
+                            phaseRow.innerHTML = `
+                                <td colspan="5" style="background: ${getThemeColor('#e6f2ff', '#1a202c')}; 
+                                         color: ${getThemeColor('#2563eb', '#60a5fa')}; padding: 12px; text-align: center; font-weight: bold;">
+                                    🚀 Begin: ${monthData.phase}${getPhaseThresholdText(monthData.phase)}
+                                </td>
+                            `;
+                            phaseStartMonth = index;
+                        }
+                        previousPhase = monthData.phase;
+                    }
+                    
+                    // Find which card(s) received extra payment this month
+                    const activeCards = [];
+                    const creditCards = debts.filter(d => d.creditLimit && d.creditLimit > 0);
+                    
+                    creditCards.forEach(debt => {
+                        const extraPayment = monthData.snowballAmount?.[debt.name] || 0;
+                        if (extraPayment > 0) {
+                            const startBalance = (monthData.balances[debt.name] || 0) + 
+                                                 (monthData.payments[debt.name] || 0) - 
+                                                 (monthData.interest[debt.name] || 0);
+                            const endBalance = monthData.balances[debt.name] || 0;
+                            
+                            const startUtil = debt.creditLimit ? (startBalance / debt.creditLimit) * 100 : 0;
+                            const endUtil = debt.creditLimit ? (endBalance / debt.creditLimit) * 100 : 0;
+                            
+                            activeCards.push({
+                                name: debt.name,
+                                payment: monthData.payments[debt.name] || 0,
+                                minPayment: debt.minPayment || 0,
+                                extraPayment: extraPayment,
+                                startUtil: startUtil,
+                                endUtil: endUtil,
+                                utilChange: startUtil - endUtil
+                            });
+                        }
+                    });
+                    
+                    // Calculate summary stats
+                    const totalMinPayments = debts.reduce((sum, d) => 
+                        sum + (Math.min(d.minPayment || 0, monthData.balances[d.name] || 0)), 0);
+                    const totalPayments = Object.values(monthData.payments || {})
+                        .reduce((sum, p) => sum + (p || 0), 0);
+                    const totalExtra = totalPayments - totalMinPayments;
+                    
+                    // Calculate overall utilization
+                    const totalCreditLimit = creditCards.reduce((sum, d) => sum + (d.creditLimit || 0), 0);
+                    const totalCreditBalance = creditCards.reduce((sum, d) => 
+                        sum + (monthData.balances[d.name] || 0), 0);
+                    const overallUtil = totalCreditLimit > 0 ? (totalCreditBalance / totalCreditLimit) * 100 : 0;
+                    
+                    if (activeCards.length > 0) {
+                        // Combine all active cards for this month into one row
+                        const row = body.insertRow();
+                        
+                        // Build cards list with utilization changes
+                        let cardsHTML = '';
+                        let paymentsHTML = '';
+                        let totalExtraForMonth = 0;
+                        
+                        activeCards.forEach((card, idx) => {
+                            // Utilization color coding
+                            let utilColor = '#38a169'; // green
+                            if (card.endUtil > 89) utilColor = '#e53e3e'; // red
+                            else if (card.endUtil > 49) utilColor = '#ed8936'; // orange
+                            else if (card.endUtil > 29) utilColor = '#ecc94b'; // yellow
+                            
+                            const utilArrow = card.utilChange > 0 ? '↓' : '↑';
+                            const utilChangeColor = card.utilChange > 0 ? '#38a169' : '#e53e3e';
+                            
+                            if (idx > 0) cardsHTML += '<br>';
+                            cardsHTML += `<strong>${card.name}</strong>`;
+                            
+                            if (idx > 0) paymentsHTML += '<br>';
+                            paymentsHTML += `
+                                <span>${card.startUtil.toFixed(1)}%</span>
+                                <span style="color: ${utilChangeColor};">→</span>
+                                <span style="color: ${utilColor}; font-weight: bold;">
+                                    ${card.endUtil.toFixed(1)}%
+                                </span>
+                                <span style="color: ${utilChangeColor}; font-size: 11px;">
+                                    ${utilArrow}${Math.abs(card.utilChange).toFixed(1)}%
+                                </span>
+                            `;
+                            
+                            totalExtraForMonth += card.extraPayment;
+                        });
+                        
+                        row.innerHTML = `
+                            <td><strong>${monthData.month}</strong></td>
+                            <td>${cardsHTML}</td>
+                            <td>${paymentsHTML}</td>
+                            <td>
+                                <span style="color: ${getThemeColor('#718096', '#a0aec0')};">${formatCurrency(totalPayments - totalExtraForMonth)}</span> + 
+                                <span style="color: ${getThemeColor('#667eea', '#818cf8')}; font-weight: bold;">${formatCurrency(totalExtraForMonth)}</span>
+                                = <strong>${formatCurrency(totalPayments)}</strong>
+                            </td>
+                            <td style="font-size: 12px;">
+                                <div>Util: <span style="color: ${overallUtil > 30 ? getThemeColor('#ed8936', '#f59e0b') : getThemeColor('#38a169', '#10b981')};">${overallUtil.toFixed(1)}%</span></div>
+                                <div style="color: ${getThemeColor('#718096', '#a0aec0')};">Phase: ${monthData.phaseProgress || 0}%</div>
+                                <div style="color: ${getThemeColor('#667eea', '#9f7aea')};">Month ${monthData.month}/${schedule.length}</div>
+                            </td>
+                        `;
+                    } else if (monthData.month === 1 || (monthData.month % 12) === 1) {
+                        // Show summary row for months with no active payments (minimums only)
+                        const row = body.insertRow();
+                        row.innerHTML = `
+                            <td><strong>${monthData.month}</strong></td>
+                            <td colspan="2" style="color: ${getThemeColor('#718096', '#9ca3af')}; font-style: italic;">
+                                All cards at minimum payments
+                            </td>
+                            <td>Total: ${formatCurrency(totalPayments)}</td>
+                            <td style="font-size: 12px;">
+                                <div>Util: <span style="color: ${overallUtil > 30 ? getThemeColor('#ed8936', '#f59e0b') : getThemeColor('#38a169', '#10b981')};">${overallUtil.toFixed(1)}%</span></div>
+                                <div style="color: ${getThemeColor('#667eea', '#9f7aea')};">Month ${monthData.month}/${schedule.length}</div>
+                            </td>
+                        `;
+                    }
+                });
+                
+                // Add final summary
+                const summaryRow = body.insertRow();
+                const totalMonths = schedule.length;
+                const finalBalance = Object.values(schedule[schedule.length - 1].balances || {})
+                    .reduce((sum, b) => sum + (b || 0), 0);
+                
+                summaryRow.innerHTML = `
+                    <td colspan="5" style="background: #1a202c; color: #68d391; padding: 15px; text-align: center; font-weight: bold;">
+                        🎉 All Debts Paid Off! Total time: ${Math.floor(totalMonths / 12)}y ${totalMonths % 12}m
+                    </td>
+                `;
+                
+            } catch (error) {
+                console.error('Error updating simplified waterfall view:', error);
+                updateAmortizationTable(); // Fall back to regular view
             }
         }
 
@@ -3206,7 +3915,7 @@
             });
             
             if (shouldCollapse && !isExpanded) {
-                html += `<div class="payoff-collapse" style="text-align: center; color: #718096; font-size: 12px; margin-top: 10px; cursor: pointer; padding: 8px; background: #f7fafc; border-radius: 5px;" onclick="togglePayoffDates()">
+                html += `<div class="payoff-collapse" style="text-align: center; color: ${getThemeColor('#718096', '#9ca3af')}; font-size: 12px; margin-top: 10px; cursor: pointer; padding: 8px; background: ${getThemeColor('#f7fafc', '#1f2937')}; border-radius: 5px;" onclick="togglePayoffDates()">
                     ▶ ... and ${sortedDebts.length - 5} more debts ... (click to expand)
                 </div>`;
             } else if (shouldCollapse && isExpanded) {
@@ -3233,15 +3942,15 @@
                 if (totalMonthlyPayment < totalMin || schedule.length === 0) {
                     const summaryDiv = document.getElementById('summary');
                     summaryDiv.innerHTML = `
-                        <div style="background: #fed7d7; padding: 20px; border-radius: 8px; text-align: center;">
-                            <div style="color: #c53030; font-size: 20px; font-weight: bold; margin-bottom: 10px;">
+                        <div style="background: ${getThemeColor('#fed7d7', '#2d1a1a')}; padding: 20px; border-radius: 8px; text-align: center;">
+                            <div style="color: ${getThemeColor('#c53030', '#f87171')}; font-size: 20px; font-weight: bold; margin-bottom: 10px;">
                                 ⚠️ INSUFFICIENT PAYMENT
                             </div>
-                            <div style="color: #742a2a; margin-bottom: 10px;">
+                            <div style="color: ${getThemeColor('#742a2a', '#fca5a5')}; margin-bottom: 10px;">
                                 Your monthly payment of ${formatCurrency(totalMonthlyPayment)} is less than the 
                                 required minimum of ${formatCurrency(totalMin)}
                             </div>
-                            <div style="color: #742a2a; font-weight: bold;">
+                            <div style="color: ${getThemeColor('#742a2a', '#fca5a5')}; font-weight: bold;">
                                 Please increase your Total Monthly Payment to at least ${formatCurrency(totalMin)}
                             </div>
                         </div>
@@ -3259,8 +3968,41 @@
                 
                 const finalDate = getPayoffDate(months);
                 
+                // Get current phase information if using waterfall method
+                let phaseHTML = '';
+                if (currentMethod === 'utilization' && schedule.length > 0) {
+                    const firstMonth = schedule[0];
+                    if (firstMonth.phase) {
+                        const phaseInfo = firstMonth.phase;
+                        const progressBar = firstMonth.phaseProgress ? `
+                            <div style="background: #e2e8f0; border-radius: 10px; height: 8px; margin-top: 5px; overflow: hidden;">
+                                <div style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); 
+                                           height: 100%; width: ${firstMonth.phaseProgress}%; 
+                                           transition: width 0.3s ease;"></div>
+                            </div>
+                            <div style="font-size: 11px; color: #718096; margin-top: 3px;">
+                                Progress: ${firstMonth.phaseProgress}%
+                            </div>
+                        ` : '';
+                        
+                        phaseHTML = `
+                            <div class="summary-item" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                                                              color: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                <div class="summary-label" style="color: #e0e7ff; font-size: 12px; margin-bottom: 5px;">
+                                    Waterfall Phase
+                                </div>
+                                <div class="summary-value" style="color: white; font-size: 16px; font-weight: bold;">
+                                    ${phaseInfo}
+                                </div>
+                                ${progressBar}
+                            </div>
+                        `;
+                    }
+                }
+                
                 const summaryDiv = document.getElementById('summary');
                 summaryDiv.innerHTML = `
+                    ${phaseHTML}
                     <div class="summary-item">
                         <div class="summary-label">Total Debt</div>
                         <div class="summary-value">${formatCurrency(totalDebt)}</div>
@@ -3347,7 +4089,7 @@
                     const baselineDate = getPayoffDate(baselineMonths);
                     
                     comparisonDiv.innerHTML += `
-                        <div class="comparison-card baseline" style="background: #f1f5f9; border-color: #94a3b8;">
+                        <div class="comparison-card baseline" style="background: ${getThemeColor('#f1f5f9', '#0b1220')}; border-color: ${getThemeColor('#94a3b8', '#1f2937')};">
                             <div class="comparison-title">📊 Baseline (Minimums Only)</div>
                             <div class="comparison-stat">
                                 <span>Time:</span>
@@ -3777,6 +4519,22 @@
             setTimeout(() => document.body.removeChild(successMsg), 3000);
         }
 
+        function autoSave() {
+            try {
+                const payload = {
+                    debts: debts,
+                    extraPayments: extraPayments,
+                    totalMonthlyPayment: totalMonthlyPayment,
+                    currentMethod: currentMethod,
+                    startDate: document.getElementById('startDate').value,
+                    timestamp: new Date().toISOString()
+                };
+                localStorage.setItem('adc_state', JSON.stringify(payload));
+            } catch (e) {
+                console.warn('Auto-save failed', e);
+            }
+        }
+        
         function saveConfiguration() {
             try {
                 const config = {
@@ -3978,10 +4736,52 @@
 
         // Initialize
         initializeStartDate();
-        // Start with an empty extra payment row
-        addExtraPayment();
-        updateDebtTable();
-        updateAmortizationTable();
+        
+        // Auto-load saved configuration if available
+        try {
+            const savedState = localStorage.getItem('adc_state');
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                if (state && state.debts && state.debts.length > 0) {
+                    // Restore saved state
+                    debts = state.debts || [];
+                    extraPayments = state.extraPayments || [];
+                    totalMonthlyPayment = state.totalMonthlyPayment || 5000;
+                    currentMethod = state.currentMethod || 'snowball';
+                    if (state.startDate) {
+                        document.getElementById('startDate').value = state.startDate;
+                    }
+                    document.getElementById('totalMonthly').value = totalMonthlyPayment;
+                    
+                    // Reconstruct debt IDs
+                    nextDebtId = Math.max(...debts.map(d => d.id || 0), 0) + 1;
+                    
+                    // Update UI
+                    setMethod(currentMethod);
+                    updateDebtTable();
+                    updateExtraPaymentsTable();
+                    updateAmortizationTable();
+                    
+                    console.log('Auto-loaded saved configuration');
+                } else {
+                    // No saved data, start with defaults
+                    addExtraPayment();
+                    updateDebtTable();
+                    updateAmortizationTable();
+                }
+            } else {
+                // No saved data, start with defaults
+                addExtraPayment();
+                updateDebtTable();
+                updateAmortizationTable();
+            }
+        } catch (e) {
+            console.warn('Failed to auto-load saved state:', e);
+            // Fall back to defaults
+            addExtraPayment();
+            updateDebtTable();
+            updateAmortizationTable();
+        }
     </script>
 </body>
 </html>
