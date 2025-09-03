@@ -358,6 +358,13 @@
                                     name: targetDebt.name,
                                     month: results.months
                                 });
+                                
+                                // Add milestone for debt paid off through extra payment
+                                results.milestones.push({
+                                    month: results.months,
+                                    event: `Paid off ${targetDebt.name}`,
+                                    remainingDebts: activeDebts.filter(d => !d.paidOff).length - 1
+                                });
                             }
                         }
                     }
