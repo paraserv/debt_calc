@@ -1012,7 +1012,6 @@
         <h1>💰 Advanced Debt Payoff Calculator</h1>
         <div style="display:flex;justify-content:flex-end;margin-bottom:10px;gap:10px;">
             <button class="small has-tooltip" id="themeToggle" data-tooltip="Toggle dark mode">🌙 Dark</button>
-            <button class="small has-tooltip" id="analyticsToggle" data-tooltip="Toggle local analytics (anonymous, stored only in your browser)">📊 Analytics: Off</button>
         </div>
         <p class="subtitle">Compare strategies and optimize your debt payoff plan</p>
         
@@ -4242,7 +4241,6 @@
                 el.addEventListener('click', (ev) => {
                     ev.stopPropagation();
                     el.classList.toggle('sticky');
-                    window.adcTrack && window.adcTrack('tooltip_click');
                 });
             });
             document.addEventListener('click', () => {
@@ -4281,21 +4279,6 @@
             } catch (e) {
                 console.warn('Theme init failed', e);
             }
-        })();
-
-        // Local-only analytics (counts actions in localStorage; disabled by default)
-        (function initAnalytics(){
-            const key = 'adc_analytics';
-            function get() { try { return JSON.parse(localStorage.getItem(key)) || { enabled:false, counts:{} }; } catch { return { enabled:false, counts:{} }; } }
-            function set(v) { localStorage.setItem(key, JSON.stringify(v)); }
-            function updateButton(){ const st = get(); const b = document.getElementById('analyticsToggle'); if (b) b.textContent = `📊 Analytics: ${st.enabled?'On':'Off'}`; }
-            document.addEventListener('DOMContentLoaded', ()=>{
-                updateButton();
-                const b = document.getElementById('analyticsToggle');
-                if (b) b.addEventListener('click', ()=>{ const st=get(); st.enabled=!st.enabled; set(st); updateButton(); });
-            });
-            // Expose a tiny counter
-            window.adcTrack = function(name){ const st=get(); if(!st.enabled) return; st.counts[name]=(st.counts[name]||0)+1; set(st); };
         })();
 
         function updateSyncButtonState() {
