@@ -4264,6 +4264,10 @@
                     closeModal();
                 }
             });
+            // ESC to close comparison modal
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modal.classList.contains('show')) closeModal();
+            });
             // Sticky info-tooltips: click to toggle, click-outside to close
             document.querySelectorAll('.info-tooltip').forEach(el => {
                 el.addEventListener('click', (ev) => {
