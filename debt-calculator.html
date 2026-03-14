@@ -1005,6 +1005,17 @@
         body.dark .payoff-collapse { background: #1f2937 !important; color: #9ca3af !important; }
         body.dark .schedule-preview { background: #0b1220; border: 1px solid #1f2937; }
         body.dark .payoff-collapse { background: #0f172a !important; color: #9ca3af !important; border: 1px solid #1f2937; }
+
+        /* Scenario Planner */
+        .scenario-planner-card { margin-bottom: 16px; }
+        .scenario-planner-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; }
+        .scenario-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; background: #f8fafc; }
+        .scenario-rule-row { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; flex-wrap: wrap; }
+        .scenario-rule-row input, .scenario-rule-row select { background: white; color: #1a202c; }
+        .scenario-results { padding: 8px 12px; border-radius: 6px; border: 1px solid #c6f6d5; background: #f0fff4; font-size: 13px; }
+        body.dark .scenario-card { background: #0f172a; border-color: #374151; }
+        body.dark .scenario-results { background: #0d2b1f; border-color: #22543d; }
+        body.dark .scenario-rule-row input, body.dark .scenario-rule-row select { background: #1f2937; color: #e5e7eb; border-color: #374151; }
     </style>
 </head>
 <body>
@@ -1136,6 +1147,20 @@
                 <button class="small has-tooltip" onclick="copyConfigurationJSON()" data-tooltip="Copy current configuration (debts, extra payments, method, totals, start date) to clipboard as JSON. Paste to a text editor or share; restore using Load Configuration (JSON file).">📋 Copy JSON</button>
             </div>
             <div class="debug-info" id="debugInfo" style="display: none;"></div>
+        </div>
+
+        <div class="card scenario-planner-card" id="scenarioPlannerSection">
+            <div class="scenario-planner-header" onclick="toggleScenarioPlanner()">
+                <h3 style="margin:0;">🔮 What-If Scenarios</h3>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:13px; color:#718096;">Model extra payments without changing your plan</span>
+                    <span id="scenarioPlannerChevron" style="font-size:14px; color:#718096;">▼</span>
+                </div>
+            </div>
+            <div id="scenarioPlannerBody" style="display:none; margin-top:14px;">
+                <div id="scenariosList"></div>
+                <button class="small success" onclick="addScenario()" style="margin-top:4px;">+ Add Scenario</button>
+            </div>
         </div>
 
         <h2>📅 Payoff Schedule</h2>
@@ -2964,7 +2989,7 @@
             };
         }
 
-        function calculatePayoffSchedule(debtList = null, sortMethod = currentMethod) {
+        function calculatePayoffSchedule(debtList = null, sortMethod = currentMethod, scenarioPayments = []) {
             try {
                 let workingDebts = debtList ? JSON.parse(JSON.stringify(debtList)) : JSON.parse(JSON.stringify(debts));
                 
@@ -3019,7 +3044,9 @@
                     
                     // Find all extra payments for this specific month
                     const extraPaymentsThisMonth = extraPayments.filter(p => p.month === month);
-                    const extraThisMonth = extraPaymentsThisMonth.reduce((sum, p) => sum + p.amount, 0);
+                    const scenarioPaymentsThisMonth = scenarioPayments.filter(p => p.month === month);
+                    const extraThisMonth = extraPaymentsThisMonth.reduce((sum, p) => sum + p.amount, 0)
+                                        + scenarioPaymentsThisMonth.reduce((sum, p) => sum + p.amount, 0);
                     
                     // Total available extra = base extra + scheduled extra payments
                     let availableExtra = baseExtra + extraThisMonth;
@@ -3335,6 +3362,211 @@
             }
         }
 
+        // ====== What-If Scenario Planner ======
+        let scenarios = [];
+        let scenarioIdCounter = 0;
+        let scenarioPlannerOpen = false;
+
+        function toggleScenarioPlanner() {
+            scenarioPlannerOpen = !scenarioPlannerOpen;
+            document.getElementById('scenarioPlannerBody').style.display = scenarioPlannerOpen ? 'block' : 'none';
+            document.getElementById('scenarioPlannerChevron').textContent = scenarioPlannerOpen ? '▲' : '▼';
+        }
+
+        function addScenario() {
+            scenarioIdCounter++;
+            const letter = scenarioIdCounter <= 26
+                ? String.fromCharCode(64 + scenarioIdCounter)
+                : scenarioIdCounter;
+            scenarios.push({ id: scenarioIdCounter, name: 'Scenario ' + letter, rules: [] });
+            renderScenarios();
+        }
+
+        function removeScenario(id) {
+            scenarios = scenarios.filter(s => s.id !== id);
+            renderScenarios();
+        }
+
+        function addScenarioRule(scenarioId, type) {
+            const scenario = scenarios.find(s => s.id === scenarioId);
+            if (!scenario) return;
+            const startDate = document.getElementById('startDate').value || '';
+            scenario.rules.push({ id: Date.now(), type, amount: '', fromDate: startDate, toDate: '' });
+            renderScenarios();
+        }
+
+        function removeScenarioRule(scenarioId, ruleId) {
+            const scenario = scenarios.find(s => s.id === scenarioId);
+            if (!scenario) return;
+            scenario.rules = scenario.rules.filter(r => r.id !== ruleId);
+            renderScenarios();
+            updateAllScenarioResults();
+        }
+
+        function updateScenarioField(scenarioId, field, value) {
+            const scenario = scenarios.find(s => s.id === scenarioId);
+            if (scenario) scenario[field] = value;
+        }
+
+        function updateScenarioRule(scenarioId, ruleId, field, value) {
+            const scenario = scenarios.find(s => s.id === scenarioId);
+            if (!scenario) return;
+            const rule = scenario.rules.find(r => r.id === ruleId);
+            if (!rule) return;
+            rule[field] = value;
+            if (field === 'type') {
+                renderScenarios();
+            } else {
+                updateAllScenarioResults();
+            }
+        }
+
+        function dateToMonthOffset(dateStr) {
+            const startStr = document.getElementById('startDate').value;
+            if (!startStr || !dateStr) return null;
+            const [sy, sm] = startStr.split('-').map(Number);
+            const [dy, dm] = dateStr.split('-').map(Number);
+            const offset = (dy - sy) * 12 + (dm - sm) + 1;
+            return offset > 0 ? offset : null;
+        }
+
+        function expandRulesToPayments(rules, maxMonths = 600) {
+            const payments = [];
+            rules.forEach(rule => {
+                const amount = parseFloat(rule.amount);
+                if (!amount || amount <= 0) return;
+                if (rule.type === 'once') {
+                    const month = dateToMonthOffset(rule.fromDate);
+                    if (month) payments.push({ month, amount });
+                } else {
+                    const fromMonth = dateToMonthOffset(rule.fromDate) || 1;
+                    const toMonth = rule.toDate ? dateToMonthOffset(rule.toDate) : maxMonths;
+                    if (!toMonth || toMonth < fromMonth) return;
+                    for (let m = fromMonth; m <= toMonth; m++) {
+                        payments.push({ month: m, amount });
+                    }
+                }
+            });
+            return payments;
+        }
+
+        function computeScenarioResults(scenario) {
+            const payments = expandRulesToPayments(scenario.rules);
+            if (!payments.length) return null;
+            const baseline = calculatePayoffSchedule();
+            const withScenario = calculatePayoffSchedule(null, currentMethod, payments);
+            if (!baseline.length || !withScenario.length) return null;
+            const baseMonths = baseline.length;
+            const scenMonths = withScenario.length;
+            const baseInterest = baseline.reduce((sum, m) =>
+                sum + Object.values(m.interest || {}).reduce((s, v) => s + (v || 0), 0), 0);
+            const scenInterest = withScenario.reduce((sum, m) =>
+                sum + Object.values(m.interest || {}).reduce((s, v) => s + (v || 0), 0), 0);
+            return {
+                payoffDate: getPayoffDate(scenMonths),
+                basePayoffDate: getPayoffDate(baseMonths),
+                monthsSaved: baseMonths - scenMonths,
+                interestSaved: baseInterest - scenInterest
+            };
+        }
+
+        function updateAllScenarioResults() {
+            if (!scenarioPlannerOpen) return;
+            scenarios.forEach(scenario => {
+                const resultsEl = document.getElementById('scenario-results-' + scenario.id);
+                if (!resultsEl) return;
+                const startDate = document.getElementById('startDate').value;
+                if (!startDate) {
+                    resultsEl.innerHTML = '<span style="color:#718096;">Set a start date to see projections.</span>';
+                    return;
+                }
+                const hasAmounts = scenario.rules.some(r => parseFloat(r.amount) > 0);
+                if (!hasAmounts) {
+                    resultsEl.innerHTML = '<span style="color:#718096;">Add payment amounts to see projections.</span>';
+                    return;
+                }
+                const results = computeScenarioResults(scenario);
+                if (!results) {
+                    resultsEl.innerHTML = '<span style="color:#718096;">Unable to calculate — check debts and start date.</span>';
+                    return;
+                }
+                const mColor = results.monthsSaved > 0 ? '#38a169' : results.monthsSaved < 0 ? '#e53e3e' : '#718096';
+                const iColor = results.interestSaved > 0 ? '#38a169' : results.interestSaved < 0 ? '#e53e3e' : '#718096';
+                const mText = results.monthsSaved > 0 ? results.monthsSaved + ' months sooner'
+                            : results.monthsSaved < 0 ? Math.abs(results.monthsSaved) + ' months later'
+                            : 'same timeline';
+                resultsEl.innerHTML = `
+                    <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
+                        <span>📅 <strong>${results.payoffDate}</strong> <span style="color:#718096; font-size:12px;">(vs. ${results.basePayoffDate})</span></span>
+                        <span style="color:${mColor};">⏱️ <strong>${mText}</strong></span>
+                        <span style="color:${iColor};">💰 saves <strong>${formatCurrency(results.interestSaved)}</strong> interest</span>
+                    </div>`;
+            });
+        }
+
+        function renderScenarios() {
+            const container = document.getElementById('scenariosList');
+            if (!container) return;
+            if (scenarios.length === 0) {
+                container.innerHTML = '<p style="color:#718096; font-size:13px; margin:0 0 8px;">No scenarios yet. Add one to model "what if" extra payments.</p>';
+                return;
+            }
+            container.innerHTML = scenarios.map(scenario => {
+                const rulesHTML = scenario.rules.map(rule => {
+                    const isRecurring = rule.type === 'recurring';
+                    const toField = isRecurring ? `
+                        <span style="font-size:12px; color:#718096;">to</span>
+                        <input type="month" value="${rule.toDate}"
+                            style="padding:4px 6px; border-radius:4px; border:1px solid #e2e8f0; font-size:12px;"
+                            oninput="updateScenarioRule(${scenario.id}, ${rule.id}, 'toDate', this.value)"
+                            placeholder="">
+                        <span style="font-size:11px; color:#a0aec0;">(blank = until payoff)</span>` : '';
+                    return `
+                        <div class="scenario-rule-row">
+                            <select onchange="updateScenarioRule(${scenario.id}, ${rule.id}, 'type', this.value)"
+                                style="padding:4px 6px; border-radius:4px; border:1px solid #e2e8f0; font-size:12px;">
+                                <option value="once" ${rule.type === 'once' ? 'selected' : ''}>One-time</option>
+                                <option value="recurring" ${rule.type === 'recurring' ? 'selected' : ''}>Recurring</option>
+                            </select>
+                            <span style="font-size:13px;">$</span>
+                            <input type="number" value="${rule.amount}" placeholder="Amount" step="50" min="0"
+                                style="width:90px; padding:4px 6px; border-radius:4px; border:1px solid #e2e8f0; font-size:13px;"
+                                oninput="updateScenarioRule(${scenario.id}, ${rule.id}, 'amount', this.value)">
+                            <span style="font-size:12px; color:#718096;">${isRecurring ? 'from' : 'in'}</span>
+                            <input type="month" value="${rule.fromDate}"
+                                style="padding:4px 6px; border-radius:4px; border:1px solid #e2e8f0; font-size:12px;"
+                                oninput="updateScenarioRule(${scenario.id}, ${rule.id}, 'fromDate', this.value)">
+                            ${toField}
+                            <button class="small danger" onclick="removeScenarioRule(${scenario.id}, ${rule.id})"
+                                style="padding:2px 8px; font-size:12px;">✕</button>
+                        </div>`;
+                }).join('');
+                return `
+                    <div class="scenario-card" id="scenario-card-${scenario.id}">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                            <input type="text" value="${escapeHtml(scenario.name)}"
+                                style="font-weight:bold; font-size:14px; border:none; border-bottom:1px dashed #cbd5e0;
+                                       background:transparent; color:inherit; padding:2px 4px; width:220px;"
+                                oninput="updateScenarioField(${scenario.id}, 'name', this.value)">
+                            <button class="small danger" onclick="removeScenario(${scenario.id})"
+                                style="padding:2px 10px;">✕ Remove</button>
+                        </div>
+                        <div>${rulesHTML || '<p style="color:#718096; font-size:12px; margin:0 0 6px;">No rules yet.</p>'}</div>
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button class="small" onclick="addScenarioRule(${scenario.id}, 'once')"
+                                style="font-size:12px;">+ One-time</button>
+                            <button class="small" onclick="addScenarioRule(${scenario.id}, 'recurring')"
+                                style="font-size:12px;">+ Recurring</button>
+                        </div>
+                        <div class="scenario-results" id="scenario-results-${scenario.id}" style="margin-top:10px;">
+                            <span style="color:#718096;">Add payment amounts to see projections.</span>
+                        </div>
+                    </div>`;
+            }).join('');
+            updateAllScenarioResults();
+        }
+        // ====== End Scenario Planner ======
+
         function updateAmortizationTable(showFull = false) {
             try {
                 const schedule = calculatePayoffSchedule();
@@ -3503,7 +3735,8 @@
                 
                 updateSummary(schedule);
                 updatePayoffDates(schedule.debtPayoffMonths);
-                
+                updateAllScenarioResults();
+
                 // Auto-save state after updates
                 autoSave();
                 
