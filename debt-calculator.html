@@ -2196,22 +2196,36 @@
         let scheduleModalRow = null;
         
         function openScheduleModal(button) {
-            scheduleModalRow = button.parentElement;
+            scheduleModalRow = button.closest('.extra-payment-row');
             const modal = document.getElementById('scheduleModal');
             if (!modal) {
                 createScheduleModal();
             }
-            
+
             // Get current values from the row
-            const dateInput = scheduleModalRow.querySelector('input[type="hidden"]');
+            const dateInput = scheduleModalRow.querySelector('[id^="date-input-"]');
             const amountInput = scheduleModalRow.querySelector('input[type="number"]');
             const descInput = scheduleModalRow.querySelector('input[type="text"]');
-            
+
             // Set initial values in the modal (default to row date or global start date)
             const globalStart = document.getElementById('startDate').value || '';
-            document.getElementById('scheduleStartDate').value = (dateInput.value || globalStart);
+            const resolvedDate = dateInput.value || globalStart;
+            document.getElementById('scheduleStartDate').value = resolvedDate;
             document.getElementById('scheduleAmount').value = amountInput.value || '';
             document.getElementById('scheduleDescription').value = descInput.value || 'Quarterly bonus';
+
+            // Sync the visible date label and pre-render the calendar to the resolved date
+            const scheduleModal = document.getElementById('scheduleModal');
+            const displayEl = scheduleModal.querySelector('[id^="date-display-"]');
+            if (displayEl) {
+                displayEl.querySelector('span:first-child').textContent =
+                    resolvedDate ? formatMonthYear(resolvedDate) : 'Select Month';
+                const modalCalendarId = displayEl.id.replace('date-display-', '');
+                if (resolvedDate) {
+                    const [y, m] = resolvedDate.split('-');
+                    renderModalCalendar(modalCalendarId, new Date(parseInt(y), parseInt(m) - 1));
+                }
+            }
             
             // Set defaults to quarterly and until debt free
             document.getElementById('scheduleFrequency').value = 'quarterly';
