@@ -1700,8 +1700,13 @@
             // Check if this payment is before start date
             updateExtraPayments();
             row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            const amountInput = row.querySelector('input[type="number"]');
-            if (amountInput) amountInput.focus();
+            if (!copyFrom) {
+                const dateDisplay = row.querySelector('.date-display');
+                if (dateDisplay) dateDisplay.focus();
+            } else {
+                const amountInput = row.querySelector('input[type="number"]');
+                if (amountInput) amountInput.focus();
+            }
         }
         
         function formatMonthYear(dateStr) {
