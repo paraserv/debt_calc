@@ -3763,9 +3763,9 @@
                         if (monthData.phase && monthData.phase !== 'Complete') {
                             const phaseRow = body.insertRow();
                             phaseRow.innerHTML = `
-                                <td colspan="5" style="background: ${getThemeColor('#e6f2ff', '#1a202c')}; 
+                                <td colspan="5" style="background: ${getThemeColor('#e6f2ff', '#1a202c')};
                                          color: ${getThemeColor('#2563eb', '#60a5fa')}; padding: 12px; text-align: center; font-weight: bold;">
-                                    🚀 Begin: ${monthData.phase}${getPhaseThresholdText(monthData.phase)}
+                                    🚀 ${monthData.phase}${getPhaseThresholdText(monthData.phase)}
                                 </td>
                             `;
                             phaseStartMonth = index;
@@ -3850,19 +3850,28 @@
                             totalExtraForMonth += card.extraPayment;
                         });
                         
+                        const monthDate = getPayoffDate(monthData.month - 1);
+                        const phaseProgress = monthData.phaseProgress || 0;
                         row.innerHTML = `
-                            <td><strong>${monthData.month}</strong></td>
+                            <td>
+                                <strong>${monthData.month}</strong>
+                                <div style="font-size: 11px; color: ${getThemeColor('#718096', '#a0aec0')};">${monthDate}</div>
+                            </td>
                             <td>${cardsHTML}</td>
                             <td>${paymentsHTML}</td>
                             <td>
-                                <span style="color: ${getThemeColor('#718096', '#a0aec0')};">${formatCurrency(totalPayments - totalExtraForMonth)}</span> + 
+                                <span style="color: ${getThemeColor('#718096', '#a0aec0')};">${formatCurrency(totalPayments - totalExtraForMonth)}</span> +
                                 <span style="color: ${getThemeColor('#667eea', '#818cf8')}; font-weight: bold;">${formatCurrency(totalExtraForMonth)}</span>
                                 = <strong>${formatCurrency(totalPayments)}</strong>
                             </td>
                             <td style="font-size: 12px;">
                                 <div>Util: <span style="color: ${overallUtil > 30 ? getThemeColor('#ed8936', '#f59e0b') : getThemeColor('#38a169', '#10b981')};">${overallUtil.toFixed(1)}%</span></div>
-                                <div style="color: ${getThemeColor('#718096', '#a0aec0')};">Phase: ${monthData.phaseProgress || 0}%</div>
-                                <div style="color: ${getThemeColor('#667eea', '#9f7aea')};">Month ${monthData.month}/${schedule.length}</div>
+                                <div style="margin-top: 4px;">
+                                    <div style="font-size: 10px; color: ${getThemeColor('#718096', '#a0aec0')}; margin-bottom: 2px;">Phase ${phaseProgress}%</div>
+                                    <div style="background: ${getThemeColor('#e2e8f0', '#374151')}; border-radius: 3px; height: 6px; width: 80px;">
+                                        <div style="background: ${getThemeColor('#667eea', '#818cf8')}; border-radius: 3px; height: 6px; width: ${phaseProgress}%;"></div>
+                                    </div>
+                                </div>
                             </td>
                         `;
                     } else if (monthData.month === 1 || (monthData.month % 12) === 1) {
@@ -3889,7 +3898,7 @@
                     .reduce((sum, b) => sum + (b || 0), 0);
                 
                 summaryRow.innerHTML = `
-                    <td colspan="5" style="background: #1a202c; color: #68d391; padding: 15px; text-align: center; font-weight: bold;">
+                    <td colspan="5" style="background: ${getThemeColor('#e6fffa', '#0d2b1f')}; color: ${getThemeColor('#22543d', '#68d391')}; padding: 15px; text-align: center; font-weight: bold; border: 1px solid ${getThemeColor('#38a169', '#22543d')};">
                         🎉 All Debts Paid Off! Total time: ${Math.floor(totalMonths / 12)}y ${totalMonths % 12}m
                     </td>
                 `;
